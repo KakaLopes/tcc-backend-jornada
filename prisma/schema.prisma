@@ -8,19 +8,22 @@ datasource db {
 }
 
 model adjustments {
-  id            String        @id @db.Char(36)
-  time_entry_id String?       @db.Char(36)
-  old_value     String?       @db.Text
-  new_value     String?       @db.Text
-  reason        String?       @db.Text
-  approved_by   String?       @db.Char(36)
-  approved_at   DateTime?     @db.DateTime(6)
-  created_at    DateTime      @default(now()) @db.DateTime(6)
-  users         users?        @relation(fields: [approved_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_adj_approved_by")
-  time_entries  time_entries? @relation(fields: [time_entry_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_adj_time_entry")
+  id            String    @id @db.Char(36)
+  work_entry_id String?   @db.Char(36)
+  old_value     String?   @db.Text
+  new_value     String?   @db.Text
+  reason        String?   @db.Text
+  approved_by   String?   @db.Char(36)
+  approved_at   DateTime? @db.DateTime(6)
+  created_at    DateTime  @default(now()) @db.DateTime(6)
+
+  users          users?        @relation(fields: [approved_by], references: [id], map: "fk_adj_approved_by")
+  work_entries   work_entries? @relation(fields: [work_entry_id], references: [id], onDelete: Cascade, map: "fk_adj_work_entry")
+  timeEntries    time_entries? @relation(fields: [time_entriesId], references: [id])
+  time_entriesId String?       @db.Char(36)
 
   @@index([approved_by], map: "fk_adj_approved_by")
-  @@index([time_entry_id], map: "fk_adj_time_entry")
+  @@index([work_entry_id], map: "fk_adj_work_entry")
 }
 
 model audit_logs {
@@ -88,4 +91,20 @@ model users {
   adjustments   adjustments[]
   employees     employees[]
   time_entries  time_entries[]
+  work_entries  work_entries[]
+}
+
+model work_entries {
+  id         String    @id @default(uuid())
+  user_id    String
+  clock_in   DateTime  @default(now())
+  clock_out  DateTime?
+  note       String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  users       users         @relation(fields: [user_id], references: [id])
+  adjustments adjustments[]
+
+  @@index([user_id])
 }

@@ -1,3 +1,6 @@
+
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const cors = require("cors");
@@ -21,48 +24,265 @@ function auth(req, res, next) {
     return res.status(401).json({ error: "Formato inválido. Use: Bearer TOKEN" });
   }
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, email, role }
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Token inválido ou expirado" });
-  }
+ try {
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  req.user = decoded; // { id, email, role }
+  next();
+} catch (err) {
+  return res.status(401).json({ error: "Token inválido ou expirado" });
 }
+}
+function isAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Acesso negado (apenas admin)" });
+  }
+  next();
+}
+// CLOCK-IN (registrar entrada)
+app.post("/clock-in", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { note } = req.body;
 
+    // impedir abrir outra jornada sem fechar a anterior
+    const openEntry = await prisma.work_entries.findFirst({
+      where: { user_id: userId, clock_out: null },
+      orderBy: { clock_in: "desc" }
+    });
 
+    if (openEntry) {
+      return res.status(400).json({
+        error: "Você já tem um clock-in aberto. Faça clock-out antes."
+      });
+    }
+
+    const entry = await prisma.work_entries.create({
+      data: {
+        user_id: userId,
+        clock_in: new Date(),
+        note: note || null
+      }
+    });
+
+    return res.json({ message: "Clock-in realizado com sucesso", entry });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// CLOCK-OUT (registrar saída)
+app.post("/clock-out", auth, async (req, res) => {
+  try {
+    // segurança extra: garantir que auth setou o user
+    if (!req.user?.id) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
+    const userId = req.user.id;
+    const note = req.body?.note;
+
+    // procurar jornada aberta (sem clock_out)
+    const openEntry = await prisma.work_entries.findFirst({
+      where: {
+        user_id: userId,
+        clock_out: null
+      },
+      orderBy: {
+        clock_in: "desc"
+      }
+    });
+
+    if (!openEntry) {
+      return res.status(400).json({
+        error: "Você não tem um clock-in aberto para fazer clock-out."
+      });
+    }
+
+    // monta updateData: só atualiza note se veio note no body
+    const updateData = {
+      clock_out: new Date()
+    };
+
+    if (note && String(note).trim() !== "") {
+      updateData.note = note;
+    }
+
+    const updated = await prisma.work_entries.update({
+      where: { id: openEntry.id },
+      data: updateData
+    });
+
+    return res.json({
+      message: "Clock-out realizado com sucesso",
+      entry: updated
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 // rota teste
 app.get("/", (req, res) => {
   res.send("Servidor do TCC está funcionando!");
 });
-
-
-// buscar usuários do banco
-app.get("/users", auth, async (req, res) => {
+// solicitar ajuste de ponto
+app.post("/adjustments/request", auth, async (req, res) => {
   try {
-    const users = await prisma.users.findMany();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    const { work_entry_id, old_value, new_value, reason } = req.body;
 
-app.post("/users", async (req, res) => {
-  try {
-    const user = await prisma.users.create({
-      data: req.body
+    // validação: precisa existir
+    const entry = await prisma.work_entries.findUnique({
+      where: { id: work_entry_id }
     });
-    res.json(user);
+
+    if (!entry) {
+      return res.status(400).json({ error: "work_entry_id inválido (ponto não existe)" });
+    }
+
+    // validação: o ponto tem que ser do usuário logado
+    if (entry.user_id !== req.user.id) {
+      return res.status(403).json({ error: "Você não pode pedir ajuste de outro usuário" });
+    }
+
+    const adjustment = await prisma.adjustments.create({
+      data: {
+        id: crypto.randomUUID(),
+        work_entry_id,
+        old_value,
+        new_value,
+        reason
+      }
+    });
+
+    return res.json({ message: "Solicitação de ajuste enviada", adjustment });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
-app.get("/users/:id", async (req, res) => {
+// admin aprovar ajuste
+app.post("/admin/adjustments/:id/approve", auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await prisma.users.findUnique({
+    const adjustment = await prisma.adjustments.findUnique({
       where: { id }
+    });
+
+    if (!adjustment) {
+      return res.status(404).json({ error: "Ajuste não encontrado" });
+    }
+
+    if (adjustment.approved_at) {
+      return res.status(409).json({ error: "Esse ajuste já foi processado" });
+    }
+
+    if (!adjustment.work_entry_id) {
+      return res.status(400).json({ error: "Ajuste sem work_entry_id (dados incompletos)" });
+    }
+
+    // atualiza o ponto (exemplo: atualizar clock_in)
+    // (AQUI vamos assumir que old_value/new_value são para clock_in)
+    const updatedEntry = await prisma.work_entries.update({
+      where: { id: adjustment.work_entry_id },
+      data: {
+        clock_in: new Date(adjustment.new_value)
+      }
+    });
+
+    // marca ajuste como aprovado
+    const approved = await prisma.adjustments.update({
+      where: { id },
+      data: {
+        approved_by: req.user.id,
+        approved_at: new Date()
+      }
+    });
+
+    // audit log 
+    await prisma.audit_logs.create({
+      data: {
+        id: crypto.randomUUID(),
+        action: "APPROVE_ADJUSTMENT",
+        entity: "adjustments",
+        entity_id: approved.id,
+        user_id: req.user.id
+      }
+    });
+
+    return res.json({
+      message: "Ajuste aprovado e ponto atualizado",
+      adjustment: approved,
+      updated_entry: updatedEntry
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// ADMIN - rejeitar ajuste
+app.post("/admin/adjustments/:id/reject", auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const adjustment = await prisma.adjustments.findUnique({
+      where: { id }
+    });
+
+    if (!adjustment) {
+      return res.status(404).json({ error: "Ajuste não encontrado" });
+    }
+
+    if (adjustment.approved_at) {
+      return res.status(409).json({ error: "Esse ajuste já foi processado" });
+    }
+
+    const rejected = await prisma.adjustments.update({
+      where: { id },
+      data: {
+        approved_by: req.user.id,
+        approved_at: new Date(),
+        reason: (adjustment.reason || "") + " (REJEITADO)"
+      }
+    });
+
+    await prisma.audit_logs.create({
+      data: {
+        id: crypto.randomUUID(),
+        action: "REJECT_ADJUSTMENT",
+        entity: "adjustments",
+        entity_id: rejected.id,
+        user_id: req.user.id
+      }
+    });
+
+    return res.json({ message: "Ajuste rejeitado", adjustment: rejected });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// ADMIN - listar ajustes pendentes
+app.get("/admin/adjustments", auth, isAdmin, async (req, res) => {
+  try {
+    const adjustments = await prisma.adjustments.findMany({
+      where: { approved_at: null },
+      orderBy: { created_at: "desc" }
+    });
+
+    res.json(adjustments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// 👤 Perfil do usuário logado
+app.get("/me", auth, async (req, res) => {
+  try {
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
     });
 
     if (!user) {
@@ -74,14 +294,325 @@ app.get("/users/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.put("/users/:id", async (req, res) => {
+// Horas trabalhadas hoje (usuário logado)
+app.get("/my-hours-today", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // pega a data de hoje (00:00:00)
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    // amanhã (00:00:00) pra fechar o intervalo
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    // busca entradas de hoje do usuário
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        user_id: userId,
+        clock_in: { gte: start, lt: end }
+      },
+      select: {
+        clock_in: true,
+        clock_out: true
+      }
+    });
+
+    // soma minutos
+    let totalMinutes = 0;
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date(); // se ainda aberto, conta até agora
+
+      const diffMs = outTime - inTime;
+      if (diffMs > 0) totalMinutes += Math.floor(diffMs / 60000);
+    }
+
+    const hours = Number((totalMinutes / 60).toFixed(2));
+
+    return res.json({
+      date: start.toISOString().slice(0, 10),
+      total_minutes: totalMinutes,
+      total_hours: hours
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// Admin: horas de todos HOJE
+app.get("/admin/hours-today", auth, isAdmin, async (req, res) => {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      select: {
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        users: { select: { id: true, full_name: true, email: true, role: true } }
+      }
+    });
+
+    const totals = new Map(); // user_id -> { user, totalMinutes }
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date(); // se aberto, conta até agora
+      const diffMs = outTime - inTime;
+      const minutes = diffMs > 0 ? Math.floor(diffMs / 60000) : 0;
+
+      const key = e.user_id;
+      if (!totals.has(key)) {
+        totals.set(key, { user: e.users, totalMinutes: 0 });
+      }
+      totals.get(key).totalMinutes += minutes;
+    }
+
+    const result = Array.from(totals.values())
+      .map(({ user, totalMinutes }) => ({
+        user,
+        total_minutes: totalMinutes,
+        total_hours: Number((totalMinutes / 60).toFixed(2))
+      }))
+      .sort((a, b) => b.total_minutes - a.total_minutes);
+
+    res.json({
+      date: start.toISOString().slice(0, 10),
+      count_users: result.length,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Admin: horas de todos na SEMANA (segunda a domingo)
+app.get("/admin/hours-week", auth, isAdmin, async (req, res) => {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const day = start.getDay(); // 0=dom,1=seg...
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    start.setDate(start.getDate() - diffToMonday);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      select: {
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        users: { select: { id: true, full_name: true, email: true, role: true } }
+      }
+    });
+
+    const totals = new Map();
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date();
+      const diffMs = outTime - inTime;
+      const minutes = diffMs > 0 ? Math.floor(diffMs / 60000) : 0;
+
+      const key = e.user_id;
+      if (!totals.has(key)) {
+        totals.set(key, { user: e.users, totalMinutes: 0 });
+      }
+      totals.get(key).totalMinutes += minutes;
+    }
+
+    const result = Array.from(totals.values())
+      .map(({ user, totalMinutes }) => ({
+        user,
+        total_minutes: totalMinutes,
+        total_hours: Number((totalMinutes / 60).toFixed(2))
+      }))
+      .sort((a, b) => b.total_minutes - a.total_minutes);
+
+    res.json({
+      week_start: start.toISOString().slice(0, 10),
+      week_end: end.toISOString().slice(0, 10),
+      count_users: result.length,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Horas trabalhadas na semana (usuário logado)
+app.get("/my-hours-week", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // início da semana (segunda 00:00)
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const day = start.getDay(); // 0=domingo, 1=segunda...
+    const diffToMonday = day === 0 ? 6 : day - 1; // domingo volta 6, senão volta (day-1)
+    start.setDate(start.getDate() - diffToMonday);
+
+    // fim da semana (segunda da próxima semana 00:00)
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        user_id: userId,
+        clock_in: { gte: start, lt: end }
+      },
+      select: {
+        clock_in: true,
+        clock_out: true
+      }
+    });
+
+    let totalMinutes = 0;
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date(); // aberto conta até agora
+      const diffMs = outTime - inTime;
+      if (diffMs > 0) totalMinutes += Math.floor(diffMs / 60000);
+    }
+
+    const hours = Number((totalMinutes / 60).toFixed(2));
+
+    return res.json({
+      week_start: start.toISOString().slice(0, 10),
+      week_end: end.toISOString().slice(0, 10),
+      total_minutes: totalMinutes,
+      total_hours: hours
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// Histórico de jornadas do usuário logado
+app.get("/my-entries", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const entries = await prisma.work_entries.findMany({
+      where: { user_id: userId },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    return res.json(entries);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+// buscar usuários do banco 
+app.get("/users", auth, isAdmin, async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/users", async (req, res) => {
+  try {
+    const { full_name, email, password, role } = req.body;
+
+    // criptografar senha
+    const password_hash = await bcrypt.hash(password, 10);
+
+   const user = await prisma.users.create({
+  data: {
+    id: crypto.randomUUID(),   
+    full_name,
+    email,
+    password_hash,
+    role: role || "user"
+  }
+});
+
+    res.json({
+      message: "Usuário criado com sucesso",
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// buscar 1 usuário por id
+app.get("/users/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.users.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.put("/users/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
     const user = await prisma.users.update({
-      where: { id },
-      data: req.body
-    });
+  where: { id },
+  data: req.body,
+  select: {
+    id: true,
+    full_name: true,
+    email: true,
+    role: true,
+    created_at: true,
+    updated_at: true
+  }
+});
 
     res.json(user);
   } catch (error) {
@@ -92,7 +623,7 @@ app.put("/users/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.delete("/users/:id", async (req, res) => {
+app.delete("/users/:id", auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -120,9 +651,11 @@ app.post("/login", async (req, res) => {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
 
-    if (user.password_hash !== password) {
-      return res.status(401).json({ error: "Senha incorreta" });
-    }
+   const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+if (!passwordMatch) {
+  return res.status(401).json({ error: "Senha incorreta" });
+}
 const token = jwt.sign(
   { id: user.id, email: user.email, role: user.role },
   process.env.JWT_SECRET,
@@ -138,6 +671,140 @@ const token = jwt.sign(
     role: user.role
   }
 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Ver minhas jornadas
+app.get("/my-times", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const entries = await prisma.work_entries.findMany({
+      where: { user_id: userId },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Admin: ver todas as jornadas
+app.get("/times", auth, isAdmin, async (req, res) => {
+  try {
+    const entries = await prisma.work_entries.findMany({
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true,
+        users: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Admin: lista detalhada dos pontos de HOJE
+app.get("/admin/entries-today", auth, isAdmin, async (req, res) => {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    res.json({
+      date: start.toISOString().slice(0, 10),
+      count_entries: entries.length,
+      entries
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Admin: lista detalhada por período
+// Ex: /admin/entries?start=2026-03-01&end=2026-03-07
+app.get("/admin/entries", auth, isAdmin, async (req, res) => {
+  try {
+    const { start: startStr, end: endStr } = req.query;
+
+    if (!startStr || !endStr) {
+      return res.status(400).json({
+        error: "Informe os parâmetros start e end no formato YYYY-MM-DD"
+      });
+    }
+
+    const start = new Date(`${startStr}T00:00:00`);
+    const end = new Date(`${endStr}T00:00:00`);
+    end.setDate(end.getDate() + 1); // inclui o dia end
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: "Datas inválidas" });
+    }
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    res.json({
+      start: startStr,
+      end: endStr,
+      count_entries: entries.length,
+      entries
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
