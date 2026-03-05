@@ -98,18 +98,26 @@ app.post("/clock-out", auth, async (req, res) => {
     }
 
     // monta updateData: só atualiza note se veio note no body
-    const updateData = {
-      clock_out: new Date()
-    };
+  const now = new Date();
 
-    if (note && String(note).trim() !== "") {
-      updateData.note = note;
-    }
+// calcula duração em minutos
+const durationMs = now.getTime() - new Date(openEntry.clock_in).getTime();
+const durationMinutes = Math.max(0, Math.floor(durationMs / 60000));
 
-    const updated = await prisma.work_entries.update({
-      where: { id: openEntry.id },
-      data: updateData
-    });
+// dados que serão atualizados
+const updateData = {
+  clock_out: now,
+  duration_minutes: durationMinutes
+};
+
+if (note && String(note).trim() !== "") {
+  updateData.note = note;
+}
+
+const updated = await prisma.work_entries.update({
+  where: { id: openEntry.id },
+  data: updateData
+});
 
     return res.json({
       message: "Clock-out realizado com sucesso",

@@ -105,6 +105,6 @@ model work_entries {
 
   users       users         @relation(fields: [user_id], references: [id])
   adjustments adjustments[]
-
+duration_minutes Int?
   @@index([user_id])
 }
