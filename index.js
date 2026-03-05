@@ -503,6 +503,75 @@ app.get("/admin/reports/hours-today", auth, isAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// ADMIN REPORT - horas da semana atual
+app.get("/admin/reports/hours-week", auth, isAdmin, async (req, res) => {
+  try {
+    // início da semana (segunda-feira 00:00:00)
+    const now = new Date();
+    const day = now.getDay(); // 0=domingo, 1=segunda...
+    const diffToMonday = day === 0 ? 6 : day - 1;
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // fim da semana (domingo 23:59:59.999)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        clock_in: {
+          gte: startOfWeek,
+          lte: endOfWeek,
+        },
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        clock_in: "desc",
+      },
+    });
+
+    const result = entries.map((e) => {
+      let duration_minutes = null;
+
+      if (e.clock_out) {
+        duration_minutes = Math.max(
+          0,
+          Math.round((new Date(e.clock_out) - new Date(e.clock_in)) / 60000)
+        );
+      }
+
+      return {
+        id: e.id,
+        user: e.users,
+        clock_in: e.clock_in,
+        clock_out: e.clock_out,
+        duration_minutes,
+        note: e.note,
+      };
+    });
+
+    res.json({
+      week_start: startOfWeek,
+      week_end: endOfWeek,
+      total_entries: result.length,
+      entries: result,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // Horas trabalhadas na semana (usuário logado)
 app.get("/my-hours-week", auth, async (req, res) => {
   try {
