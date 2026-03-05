@@ -448,6 +448,61 @@ app.get("/admin/hours-week", auth, isAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// ADMIN - horas trabalhadas hoje
+app.get("/admin/reports/hours-today", auth, isAdmin, async (req, res) => {
+  try {
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0,0,0,0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23,59,59,999);
+
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        clock_in: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    const result = entries.map(entry => {
+
+      let duration_minutes = null;
+
+      if (entry.clock_out) {
+        duration_minutes =
+          Math.floor(
+            (new Date(entry.clock_out) - new Date(entry.clock_in)) / 60000
+          );
+      }
+
+      return {
+        id: entry.id,
+        user: entry.users,
+        clock_in: entry.clock_in,
+        clock_out: entry.clock_out,
+        duration_minutes
+      };
+
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // Horas trabalhadas na semana (usuário logado)
 app.get("/my-hours-week", auth, async (req, res) => {
   try {
