@@ -8,7 +8,17 @@ const { PrismaClient } = require("@prisma/client");
 
 const app = express();
 const prisma = new PrismaClient();
+function calcDurationMinutes(clockIn, clockOut) {
+  if (!clockIn || !clockOut) return null;
 
+  const start = new Date(clockIn);
+  const end = new Date(clockOut);
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs <= 0) return 0;
+
+  return Math.floor(diffMs / 60000); // minutos inteiros
+}
 app.use(cors());
 app.use(express.json());
 function auth(req, res, next) {
@@ -187,13 +197,34 @@ app.post("/admin/adjustments/:id/approve", auth, isAdmin, async (req, res) => {
     }
 
     // atualiza o ponto (exemplo: atualizar clock_in)
-    // (AQUI vamos assumir que old_value/new_value são para clock_in)
-    const updatedEntry = await prisma.work_entries.update({
-      where: { id: adjustment.work_entry_id },
-      data: {
-        clock_in: new Date(adjustment.new_value)
-      }
-    });
+  // 1) buscar o ponto atual
+const entry = await prisma.work_entries.findUnique({
+  where: { id: adjustment.work_entry_id }
+});
+
+if (!entry) {
+  return res.status(404).json({ error: "Ponto não encontrado" });
+}
+
+// 2) novo clock_in vindo do ajuste
+const newClockIn = new Date(adjustment.new_value);
+
+// 3) recalcular duração se existir clock_out
+let durationMinutes = entry.duration_minutes;
+
+if (entry.clock_out) {
+  const durationMs = new Date(entry.clock_out).getTime() - newClockIn.getTime();
+  durationMinutes = Math.max(0, Math.floor(durationMs / 60000));
+}
+
+// 4) atualizar o ponto
+const updatedEntry = await prisma.work_entries.update({
+  where: { id: adjustment.work_entry_id },
+  data: {
+    clock_in: newClockIn,
+    duration_minutes: durationMinutes
+  }
+});
 
     // marca ajuste como aprovado
     const approved = await prisma.adjustments.update({
