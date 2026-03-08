@@ -218,6 +218,7 @@ if (entry.clock_out) {
 }
 
 // 4) atualizar o ponto
+// atualizar ponto
 const updatedEntry = await prisma.work_entries.update({
   where: { id: adjustment.work_entry_id },
   data: {
