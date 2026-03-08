@@ -731,6 +731,7 @@ app.get("/my-entries", auth, async (req, res) => {
         id: true,
         clock_in: true,
         clock_out: true,
+        duration_minutes: true,
         note: true,
         created_at: true,
         updated_at: true
