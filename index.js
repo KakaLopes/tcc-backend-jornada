@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
-
+const { auth, isAdmin } = require("./middlewares/auth");
 const app = express();
 const prisma = new PrismaClient();
 function calcDurationMinutes(clockIn, clockOut) {
@@ -21,33 +21,7 @@ function calcDurationMinutes(clockIn, clockOut) {
 }
 app.use(cors());
 app.use(express.json());
-function auth(req, res, next) {
-  const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ error: "Token não informado" });
-  }
-
-  const [type, token] = authHeader.split(" ");
-
-  if (type !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Formato inválido. Use: Bearer TOKEN" });
-  }
-
- try {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  req.user = decoded; // { id, email, role }
-  next();
-} catch (err) {
-  return res.status(401).json({ error: "Token inválido ou expirado" });
-}
-}
-function isAdmin(req, res, next) {
-  if (req.user?.role !== "admin") {
-    return res.status(403).json({ error: "Acesso negado (apenas admin)" });
-  }
-  next();
-}
 // CLOCK-IN (registrar entrada)
 app.post("/clock-in", auth, async (req, res) => {
   try {
