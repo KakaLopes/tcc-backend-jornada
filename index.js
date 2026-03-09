@@ -257,6 +257,77 @@ app.get("/admin/reports/top-workers", auth, isAdmin, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+// ADMIN REPORT - horas de um usuário por período
+app.get("/admin/reports/user-hours-range", auth, isAdmin, async (req, res) => {
+  try {
+    const { user_id, start, end } = req.query;
+
+    if (!user_id || !start || !end) {
+      return res.status(400).json({
+        error: "user_id, start e end são obrigatórios"
+      });
+    }
+
+    const startDate = new Date(`${start}T00:00:00.000Z`);
+    const endDate = new Date(`${end}T23:59:59.999Z`);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: "Datas inválidas" });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { id: user_id },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        user_id,
+        clock_in: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      orderBy: {
+        clock_in: "asc"
+      },
+      select: {
+        id: true,
+        clock_in: true,
+        clock_out: true,
+        duration_minutes: true,
+        note: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    const totalMinutes = entries.reduce((sum, entry) => {
+      return sum + (entry.duration_minutes || 0);
+    }, 0);
+
+    return res.json({
+      user,
+      start,
+      end,
+      total_entries: entries.length,
+      total_minutes: totalMinutes,
+      total_hours: Number((totalMinutes / 60).toFixed(2)),
+      entries
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 // admin aprovar ajuste
 app.post("/admin/adjustments/:id/approve", auth, isAdmin, async (req, res) => {
   try {
