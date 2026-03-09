@@ -6,93 +6,19 @@ const jwt = require("jsonwebtoken");
 const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
-const { auth, isAdmin } = require("./middlewares/auth");
 const app = express();
 const prisma = new PrismaClient();
+const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const {
-  clockIn,
-  clockOut,
-  getMyEntries
-} = require("./controllers/timeEntryController");
-const { requestAdjustment } = require("./controllers/adjustmentController");
-function calcDurationMinutes(clockIn, clockOut) {
-  if (!clockIn || !clockOut) return null;
-
-  const start = new Date(clockIn);
-  const end = new Date(clockOut);
-
-  const diffMs = end.getTime() - start.getTime();
-  if (diffMs <= 0) return 0;
-
-  return Math.floor(diffMs / 60000); // minutos inteiros
-}
+const { auth, isAdmin} = require("./middlewares/auth");
 app.use(cors());
 app.use(express.json());
 app.use("/admin", adminRoutes);
+app.use("/", userRoutes);
 
-// CLOCK-IN (registrar entrada)
-app.post("/clock-in", auth, clockIn);
-// CLOCK-OUT (registrar saída)
-app.post("/clock-out", auth, clockOut);
 // rota teste
 app.get("/", (req, res) => {
   res.send("Servidor do TCC está funcionando!");
-});
-// solicitar ajuste de ponto
-app.post("/adjustments/request", auth, requestAdjustment);
-// ADMIN REPORT - ranking de funcionários por horas trabalhadas
-app.get("/admin/reports/top-workers", auth, isAdmin, async (req, res) => {
-  try {
-    const entries = await prisma.work_entries.findMany({
-      where: {
-        duration_minutes: {
-          not: null
-        }
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true,
-            role: true
-          }
-        }
-      }
-    });
-
-    const grouped = {};
-
-    for (const entry of entries) {
-      const userId = entry.user_id;
-
-      if (!grouped[userId]) {
-        grouped[userId] = {
-          user_id: entry.users.id,
-          full_name: entry.users.full_name,
-          email: entry.users.email,
-          role: entry.users.role,
-          total_entries: 0,
-          total_minutes: 0
-        };
-      }
-
-      grouped[userId].total_entries += 1;
-      grouped[userId].total_minutes += entry.duration_minutes || 0;
-    }
-
-    const result = Object.values(grouped)
-      .map(user => ({
-        ...user,
-        total_hours: Number((user.total_minutes / 60).toFixed(2))
-      }))
-      .sort((a, b) => b.total_minutes - a.total_minutes);
-
-    return res.json(result);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
 });
 // ADMIN REPORT - horas de um usuário por período
 app.get("/admin/reports/user-hours-range", auth, isAdmin, async (req, res) => {
@@ -166,33 +92,10 @@ app.get("/admin/reports/user-hours-range", auth, isAdmin, async (req, res) => {
   }
 });
 
-// admin aprovar ajuste
 
 
-// 👤 Perfil do usuário logado
-app.get("/me", auth, async (req, res) => {
-  try {
-    const user = await prisma.users.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        full_name: true,
-        email: true,
-        role: true,
-        created_at: true,
-        updated_at: true
-      }
-    });
 
-    if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
 
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 // Horas trabalhadas hoje (usuário logado)
 app.get("/my-hours-today", auth, async (req, res) => {
   try {
@@ -578,8 +481,7 @@ app.get("/my-hours-week", auth, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
-// Histórico de jornadas do usuário logado
-app.get("/my-entries", auth, getMyEntries);
+
 // buscar usuários do banco 
 app.get("/users", auth, isAdmin, async (req, res) => {
   try {
