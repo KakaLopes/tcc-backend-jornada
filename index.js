@@ -1,4 +1,5 @@
 
+const { login } = require("./controllers/authController");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -860,42 +861,7 @@ app.delete("/users/:id", auth, isAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await prisma.users.findUnique({
-      where: { email }
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-   const passwordMatch = await bcrypt.compare(password, user.password_hash);
-
-if (!passwordMatch) {
-  return res.status(401).json({ error: "Senha incorreta" });
-}
-const token = jwt.sign(
-  { id: user.id, email: user.email, role: user.role },
-  process.env.JWT_SECRET,
-  { expiresIn: "1h" }
-);
-    res.json({
-  message: "Login realizado com sucesso",
-  token, 
-  user: {
-    id: user.id,
-    full_name: user.full_name,
-    email: user.email,
-    role: user.role
-  }
-});
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.post("/login", login);
 // Ver minhas jornadas
 app.get("/my-times", auth, async (req, res) => {
   try {
