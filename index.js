@@ -204,6 +204,59 @@ app.post("/adjustments/request", auth, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+// ADMIN REPORT - ranking de funcionários por horas trabalhadas
+app.get("/admin/reports/top-workers", auth, isAdmin, async (req, res) => {
+  try {
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        duration_minutes: {
+          not: null
+        }
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    const grouped = {};
+
+    for (const entry of entries) {
+      const userId = entry.user_id;
+
+      if (!grouped[userId]) {
+        grouped[userId] = {
+          user_id: entry.users.id,
+          full_name: entry.users.full_name,
+          email: entry.users.email,
+          role: entry.users.role,
+          total_entries: 0,
+          total_minutes: 0
+        };
+      }
+
+      grouped[userId].total_entries += 1;
+      grouped[userId].total_minutes += entry.duration_minutes || 0;
+    }
+
+    const result = Object.values(grouped)
+      .map(user => ({
+        ...user,
+        total_hours: Number((user.total_minutes / 60).toFixed(2))
+      }))
+      .sort((a, b) => b.total_minutes - a.total_minutes);
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 // admin aprovar ajuste
 app.post("/admin/adjustments/:id/approve", auth, isAdmin, async (req, res) => {
   try {
