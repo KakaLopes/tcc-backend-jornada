@@ -15,6 +15,7 @@ const {
   clockOut,
   getMyEntries
 } = require("./controllers/timeEntryController");
+const { requestAdjustment } = require("./controllers/adjustmentController");
 function calcDurationMinutes(clockIn, clockOut) {
   if (!clockIn || !clockOut) return null;
 
@@ -39,68 +40,7 @@ app.get("/", (req, res) => {
   res.send("Servidor do TCC está funcionando!");
 });
 // solicitar ajuste de ponto
-app.post("/adjustments/request", auth, async (req, res) => {
-  try {
-    const { work_entry_id, old_value, new_value, reason } = req.body;
-
-    // validações básicas
-    if (!work_entry_id) {
-      return res.status(400).json({ error: "work_entry_id é obrigatório" });
-    }
-
-    if (!new_value) {
-      return res.status(400).json({ error: "new_value é obrigatório" });
-    }
-
-    if (!reason || String(reason).trim() === "") {
-      return res.status(400).json({ error: "reason é obrigatório" });
-    }
-
-    const parsedNewValue = new Date(new_value);
-
-    if (isNaN(parsedNewValue.getTime())) {
-      return res.status(400).json({ error: "new_value inválido" });
-    }
-
-    // validação: precisa existir
-    const entry = await prisma.work_entries.findUnique({
-      where: { id: work_entry_id }
-    });
-
-    if (!entry) {
-      return res.status(400).json({ error: "work_entry_id inválido (ponto não existe)" });
-    }
-
-    // validação: o ponto tem que ser do usuário logado
-    if (entry.user_id !== req.user.id) {
-      return res.status(403).json({ error: "Você não pode pedir ajuste de outro usuário" });
-    }
-
-    // validação: se já existe clock_out, new_value não pode ser depois dele
-    if (entry.clock_out && parsedNewValue > new Date(entry.clock_out)) {
-      return res.status(400).json({
-        error: "new_value não pode ser maior que o clock_out"
-      });
-    }
-
-    const adjustment = await prisma.adjustments.create({
-      data: {
-        id: crypto.randomUUID(),
-        work_entry_id,
-        old_value,
-        new_value,
-        reason
-      }
-    });
-
-    return res.json({
-      message: "Solicitação de ajuste enviada",
-      adjustment
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-});
+app.post("/adjustments/request", auth, requestAdjustment);
 // ADMIN REPORT - ranking de funcionários por horas trabalhadas
 app.get("/admin/reports/top-workers", auth, isAdmin, async (req, res) => {
   try {
