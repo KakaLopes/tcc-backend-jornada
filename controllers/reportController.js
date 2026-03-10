@@ -434,9 +434,123 @@ async function getHoursRange(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+async function getAdminHoursToday(req, res) {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      select: {
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    const totals = new Map();
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date();
+      const diffMs = outTime - inTime;
+      const minutes = diffMs > 0 ? Math.floor(diffMs / 60000) : 0;
+
+      const key = e.user_id;
+      if (!totals.has(key)) {
+        totals.set(key, { user: e.users, totalMinutes: 0 });
+      }
+
+      totals.get(key).totalMinutes += minutes;
+    }
+
+    const result = Array.from(totals.values())
+      .map(({ user, totalMinutes }) => ({
+        user,
+        total_minutes: totalMinutes,
+        total_hours: Number((totalMinutes / 60).toFixed(2))
+      }))
+      .sort((a, b) => b.total_minutes - a.total_minutes);
+
+    return res.json({
+      date: start.toISOString().slice(0, 10),
+      count_users: result.length,
+      data: result
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function getAdminHoursWeek(req, res) {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const day = start.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    start.setDate(start.getDate() - diffToMonday);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      select: {
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    const totals = new Map();
+
+    for (const e of entries) {
+      const inTime = new Date(e.clock_in);
+      const outTime = e.clock_out ? new Date(e.clock_out) : new Date();
+      const diffMs = outTime - inTime;
+      const minutes = diffMs > 0 ? Math.floor(diffMs / 60000) : 0;
+
+      const key = e.user_id;
+      if (!totals.has(key)) {
+        totals.set(key, { user: e.users, totalMinutes: 0 });
+      }
+
+      totals.get(key).totalMinutes += minutes;
+    }
+
+    const result = Array.from(totals.values())
+      .map(({ user, totalMinutes }) => ({
+        user,
+        total_minutes: totalMinutes,
+        total_hours: Number((totalMinutes / 60).toFixed(2))
+      }))
+      .sort((a, b) => b.total_minutes - a.total_minutes);
+
+    return res.json({
+      week_start: start.toISOString().slice(0, 10),
+      week_end: end.toISOString().slice(0, 10),
+      count_users: result.length,
+      data: result
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
 module.exports = {
   getUserHoursRange,
   getHoursToday,
   getHoursWeek,
-  getHoursRange
+  getHoursRange,
+  getAdminHoursToday,
+  getAdminHoursWeek
 };
