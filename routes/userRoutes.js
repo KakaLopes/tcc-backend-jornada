@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-
 const { auth } = require("../middlewares/auth");
 const {
   clockIn,
@@ -9,9 +8,13 @@ const {
 } = require("../controllers/timeEntryController");
 const { requestAdjustment } = require("../controllers/adjustmentController");
 const { PrismaClient } = require("@prisma/client");
-
+const {
+  getMyHoursToday,
+  getMyHoursWeek
+} = require("../controllers/userController");
 const prisma = new PrismaClient();
-
+router.get("/my-hours-today", auth, getMyHoursToday);
+router.get("/my-hours-week", auth, getMyHoursWeek);
 // perfil do usuário logado
 router.get("/me", auth, async (req, res) => {
   try {
