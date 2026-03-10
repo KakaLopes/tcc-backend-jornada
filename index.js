@@ -1,4 +1,4 @@
-
+const errorHandler = require("./middlewares/errorHandler");
 const { login } = require("./controllers/authController");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
@@ -205,3 +205,4 @@ app.get("/times", auth, isAdmin, async (req, res) => {
 app.listen(3000, () => {
   console.log("Servidor rodando em http://localhost:3000");
 });
+app.use(errorHandler);
