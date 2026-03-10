@@ -91,8 +91,31 @@ async function getMyHoursWeek(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+async function getMe(req, res) {
+  try {
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
 
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
 module.exports = {
   getMyHoursToday,
-  getMyHoursWeek
+  getMyHoursWeek,
+  getMe
 };

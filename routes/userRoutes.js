@@ -10,11 +10,13 @@ const { requestAdjustment } = require("../controllers/adjustmentController");
 const { PrismaClient } = require("@prisma/client");
 const {
   getMyHoursToday,
-  getMyHoursWeek
+  getMyHoursWeek,
+  getMe
 } = require("../controllers/userController");
 const prisma = new PrismaClient();
 router.get("/my-hours-today", auth, getMyHoursToday);
 router.get("/my-hours-week", auth, getMyHoursWeek);
+router.get("/me", auth, getMe);
 // perfil do usuário logado
 router.get("/me", auth, async (req, res) => {
   try {
