@@ -199,87 +199,8 @@ app.get("/times", auth, isAdmin, async (req, res) => {
   }
 });
 // Admin: lista detalhada dos pontos de HOJE
-app.get("/admin/entries-today", auth, isAdmin, async (req, res) => {
-  try {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-
-    const entries = await prisma.work_entries.findMany({
-      where: { clock_in: { gte: start, lt: end } },
-      orderBy: { clock_in: "desc" },
-      select: {
-        id: true,
-        user_id: true,
-        clock_in: true,
-        clock_out: true,
-        note: true,
-        created_at: true,
-        updated_at: true,
-        users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
-    });
-
-    res.json({
-      date: start.toISOString().slice(0, 10),
-      count_entries: entries.length,
-      entries
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 // Admin: lista detalhada por período
 // Ex: /admin/entries?start=2026-03-01&end=2026-03-07
-app.get("/admin/entries", auth, isAdmin, async (req, res) => {
-  try {
-    const { start: startStr, end: endStr } = req.query;
-
-    if (!startStr || !endStr) {
-      return res.status(400).json({
-        error: "Informe os parâmetros start e end no formato YYYY-MM-DD"
-      });
-    }
-
-    const start = new Date(`${startStr}T00:00:00`);
-    const end = new Date(`${endStr}T00:00:00`);
-    end.setDate(end.getDate() + 1); // inclui o dia end
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Datas inválidas" });
-    }
-
-    const entries = await prisma.work_entries.findMany({
-      where: { clock_in: { gte: start, lt: end } },
-      orderBy: { clock_in: "desc" },
-      select: {
-        id: true,
-        user_id: true,
-        clock_in: true,
-        clock_out: true,
-        note: true,
-        created_at: true,
-        updated_at: true,
-        users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
-    });
-
-    res.json({
-      start: startStr,
-      end: endStr,
-      count_entries: entries.length,
-      entries
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 // iniciar servidor
 app.listen(3000, () => {
   console.log("Servidor rodando em http://localhost:3000");

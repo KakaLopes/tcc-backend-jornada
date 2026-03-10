@@ -546,11 +546,93 @@ async function getAdminHoursWeek(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+async function getAdminEntriesToday(req, res) {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    return res.json({
+      date: start.toISOString().slice(0, 10),
+      count_entries: entries.length,
+      entries
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function getAdminEntriesRange(req, res) {
+  try {
+    const { start: startStr, end: endStr } = req.query;
+
+    if (!startStr || !endStr) {
+      return res.status(400).json({
+        error: "Informe os parâmetros start e end no formato YYYY-MM-DD"
+      });
+    }
+
+    const start = new Date(`${startStr}T00:00:00`);
+    const end = new Date(`${endStr}T00:00:00`);
+    end.setDate(end.getDate() + 1);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: "Datas inválidas" });
+    }
+
+    const entries = await prisma.work_entries.findMany({
+      where: { clock_in: { gte: start, lt: end } },
+      orderBy: { clock_in: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        note: true,
+        created_at: true,
+        updated_at: true,
+        users: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      }
+    });
+
+    return res.json({
+      start: startStr,
+      end: endStr,
+      count_entries: entries.length,
+      entries
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
 module.exports = {
   getUserHoursRange,
   getHoursToday,
   getHoursWeek,
   getHoursRange,
   getAdminHoursToday,
-  getAdminHoursWeek
+  getAdminHoursWeek,
+  getAdminEntriesToday,
+  getAdminEntriesRange
 };
