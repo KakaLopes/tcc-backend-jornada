@@ -10,9 +10,11 @@ const {
   approveAdjustment,
   rejectAdjustment,
   getSystemStats,
-  getAuditLogs
+  getAuditLogs,
+  getHealth
 } = require("../controllers/adminController");
 router.get("/dashboard", auth, isAdmin, getDashboard);
+router.get("/health", auth, isAdmin, getHealth);
 module.exports = router;
 router.get("/audit-logs", auth, isAdmin, getAuditLogs);
 router.get("/system-stats", auth, isAdmin, getSystemStats);

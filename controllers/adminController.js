@@ -260,11 +260,31 @@ async function getAuditLogs(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+async function getHealth(req, res) {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+
+    return res.json({
+      status: "ok",
+      server: "online",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      server: "online",
+      database: "disconnected",
+      error: error.message
+    });
+  }
+}
 module.exports = {
   getDashboard,
   getPendingAdjustments,
   approveAdjustment,
   rejectAdjustment,
   getSystemStats,
-  getAuditLogs
+  getAuditLogs,
+  getHealth
 };
