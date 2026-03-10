@@ -201,3 +201,70 @@ module.exports = {
   approveAdjustment,
   rejectAdjustment
 };
+async function getSystemStats(req, res) {
+  try {
+
+    const totalUsers = await prisma.users.count();
+
+    const totalEntries = await prisma.work_entries.count();
+
+    const totalAdjustments = await prisma.adjustments.count();
+
+    const pendingAdjustments = await prisma.adjustments.count({
+      where: {
+        approved_at: null
+      }
+    });
+
+    const entriesWithDuration = await prisma.work_entries.findMany({
+      where: {
+        duration_minutes: {
+          not: null
+        }
+      },
+      select: {
+        duration_minutes: true
+      }
+    });
+
+    const totalMinutes = entriesWithDuration.reduce(
+      (sum, e) => sum + (e.duration_minutes || 0),
+      0
+    );
+
+    const totalHours = Number((totalMinutes / 60).toFixed(2));
+
+    res.json({
+      total_users: totalUsers,
+      total_entries: totalEntries,
+      total_adjustments: totalAdjustments,
+      pending_adjustments: pendingAdjustments,
+      total_minutes: totalMinutes,
+      total_hours: totalHours
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+async function getAuditLogs(req, res) {
+  try {
+    const logs = await prisma.audit_logs.findMany({
+      orderBy: {
+        created_at: "desc"
+      }
+    });
+
+    return res.json(logs);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+module.exports = {
+  getDashboard,
+  getPendingAdjustments,
+  approveAdjustment,
+  rejectAdjustment,
+  getSystemStats,
+  getAuditLogs
+};
