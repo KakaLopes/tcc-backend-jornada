@@ -1,158 +1,311 @@
 # TCC Backend – Sistema de Gestão de Jornada de Trabalho
 
-Backend desenvolvido como parte do Trabalho de Conclusão de Curso (TCC).
-O sistema permite registrar a jornada de trabalho dos usuários, incluindo entrada (clock-in), saída (clock-out), solicitações de ajuste de ponto e aprovação ou rejeição dessas solicitações por administradores.
+## 📌 Descrição
 
-## Tecnologias utilizadas
+Este projeto foi desenvolvido como parte do Trabalho de Conclusão de Curso (TCC) em **Software Engineering**.
+
+O sistema permite o **registro e gerenciamento da jornada de trabalho de usuários**, incluindo:
+
+* registro de entrada (clock-in)
+* registro de saída (clock-out)
+* histórico de jornadas
+* solicitação de ajustes de ponto
+* aprovação ou rejeição de ajustes por administradores
+* relatórios de horas trabalhadas
+* auditoria de ações administrativas
+
+O backend foi desenvolvido utilizando **Node.js**, **Express**, **Prisma ORM** e **MySQL**.
+
+---
+
+# 🚀 Tecnologias Utilizadas
 
 * Node.js
 * Express
 * Prisma ORM
-* JWT (JSON Web Token) para autenticação
 * MySQL
-* Thunder Client para testes de API
-* GitHub para versionamento
+* JWT (JSON Web Token)
+* bcrypt
+* Thunder Client (testes de API)
+* GitHub (controle de versão)
 
-## Funcionalidades
+---
 
-### Autenticação e usuários
-
-* Criação de usuários
-* Login com autenticação JWT
-* Rotas protegidas com middleware de autenticação
-* Controle de permissões (admin e usuário)
-
-### Sistema de jornada de trabalho
-
-* Registrar entrada (clock-in)
-* Registrar saída (clock-out)
-* Listar jornadas do usuário autenticado
-* Validação para impedir múltiplos clock-in sem clock-out
-
-### Sistema de ajustes de ponto
-
-Usuários podem solicitar ajustes caso esqueçam de registrar o ponto.
-
-* Solicitar ajuste de jornada
-* Administrador pode visualizar solicitações
-* Administrador pode aprovar ajustes
-* Administrador pode rejeitar ajustes
-
-### Auditoria do sistema
-
-Todas as ações importantes ficam registradas:
-
-* Aprovação de ajustes
-* Rejeição de ajustes
-* Alterações importantes no sistema
-
-Esses registros são armazenados na tabela **audit_logs**.
-
-## Estrutura do projeto
+# 📂 Estrutura do Projeto
 
 ```
 backend
 │
+├── controllers
+│   ├── adminController.js
+│   ├── authController.js
+│   ├── adjustmentController.js
+│   ├── reportController.js
+│   └── timeEntryController.js
+│
+├── routes
+│   ├── adminRoutes.js
+│   ├── reportRoutes.js
+│   └── userRoutes.js
+│
+├── middlewares
+│   └── auth.js
+│
 ├── prisma
 │   └── schema.prisma
 │
-├── .env
 ├── index.js
-├── package.json
-└── README.md
+└── package.json
 ```
 
-## Principais endpoints da API
+---
 
-### Autenticação
+# 🔐 Autenticação
 
-POST /login
+A autenticação é feita utilizando **JWT (JSON Web Token)**.
 
-### Jornada de trabalho
-
-POST /clock-in
-POST /clock-out
-GET /my-entries
-
-### Ajustes de ponto
-
-POST /adjustments/request
-
-### Administração
-
-GET /admin/adjustments
-POST /admin/adjustments/:id/approve
-POST /admin/adjustments/:id/reject
-
-## Como rodar o projeto
-
-### 1. Clonar o repositório
+Após realizar login, o token deve ser enviado no header:
 
 ```
-git clone https://github.com/seu-usuario/tcc-backend-jornada.git
+Authorization: Bearer TOKEN
 ```
 
-### 2. Entrar na pasta do projeto
+---
+
+# 👤 Usuários
+
+## Criar usuário
+
+POST `/users`
 
 ```
-cd tcc-backend-jornada
+{
+ "full_name": "Maria Silva",
+ "email": "silva@email.com",
+ "password": "123456"
+}
 ```
 
-### 3. Instalar dependências
+---
+
+## Login
+
+POST `/login`
+
+```
+{
+ "email": "silva@email.com",
+ "password": "123456"
+}
+```
+
+---
+
+# ⏱ Gestão de Jornada
+
+## Registrar entrada
+
+POST `/clock-in`
+
+---
+
+## Registrar saída
+
+POST `/clock-out`
+
+---
+
+## Histórico de jornadas
+
+GET `/my-entries`
+
+---
+
+# 📝 Ajustes de ponto
+
+Usuários podem solicitar correção de horários.
+
+## Solicitar ajuste
+
+POST `/adjustments/request`
+
+```
+{
+ "work_entry_id": "ID_DO_REGISTRO",
+ "old_value": "2026-03-10T08:11:00.000Z",
+ "new_value": "2026-03-10T08:10:00.000Z",
+ "reason": "Esqueci de registrar o ponto"
+}
+```
+
+---
+
+# 👨‍💼 Funcionalidades do Administrador
+
+## Dashboard
+
+GET `/admin/dashboard`
+
+Mostra resumo do sistema:
+
+* total de usuários
+* total de jornadas
+* horas trabalhadas
+* usuário mais ativo
+
+---
+
+## Aprovar ajuste
+
+POST `/admin/adjustments/:id/approve`
+
+---
+
+## Rejeitar ajuste
+
+POST `/admin/adjustments/:id/reject`
+
+---
+
+# 📊 Relatórios
+
+## Horas trabalhadas hoje
+
+GET `/admin/reports/hours-today`
+
+---
+
+## Horas trabalhadas na semana
+
+GET `/admin/reports/hours-week`
+
+---
+
+## Horas por período
+
+GET `/admin/reports/hours-range`
+
+Exemplo:
+
+```
+/admin/reports/hours-range?start=2026-03-01&end=2026-03-10
+```
+
+---
+
+# 📈 Estatísticas do sistema
+
+GET `/admin/system-stats`
+
+Retorna:
+
+* total de usuários
+* total de jornadas
+* total de ajustes
+* ajustes pendentes
+* total de horas registradas
+
+---
+
+# 🧾 Auditoria
+
+O sistema registra ações administrativas.
+
+GET `/admin/audit-logs`
+
+Exibe:
+
+* ação realizada
+* entidade afetada
+* usuário responsável
+* data da ação
+
+---
+
+# ❤️ Health Check
+
+Verifica se o sistema está funcionando corretamente.
+
+GET `/admin/health`
+
+Resposta:
+
+```
+{
+ "status": "ok",
+ "server": "online",
+ "database": "connected"
+}
+```
+
+---
+
+# ▶️ Como executar o projeto
+
+## 1️⃣ Clonar repositório
+
+```
+git clone https://github.com/SEU_USUARIO/tcc-backend-jornada
+```
+
+---
+
+## 2️⃣ Instalar dependências
 
 ```
 npm install
 ```
 
-### 4. Configurar o arquivo .env
+---
 
-Exemplo:
+## 3️⃣ Configurar banco de dados
 
-```
-DATABASE_URL="mysql://user:password@localhost:3306/database"
-JWT_SECRET="seu_segredo_jwt"
-```
-
-### 5. Rodar o Prisma
+Criar arquivo `.env`
 
 ```
-npx prisma generate
-npx prisma db push
+DATABASE_URL="mysql://usuario:senha@localhost:3306/tcc_db"
+JWT_SECRET="secret"
 ```
 
-### 6. Iniciar o servidor
+---
+
+## 4️⃣ Rodar Prisma
+
+```
+npx prisma migrate dev
+```
+
+---
+
+## 5️⃣ Iniciar servidor
 
 ```
 node index.js
 ```
 
-O servidor iniciará em:
+Servidor rodando em:
 
 ```
 http://localhost:3000
 ```
 
-## Testando a API
+---
 
-A API pode ser testada utilizando:
+# 👨‍🎓 Autor
 
-* Thunder Client
-* Postman
-* Insomnia
+Projeto desenvolvido por **Catalina Lopes**
+Curso: Software Engineering
 
-Fluxo recomendado de teste:
+---
 
-1. Criar usuário
-2. Fazer login
-3. Registrar clock-in
-4. Registrar clock-out
-5. Solicitar ajuste
-6. Administrador aprovar ou rejeitar ajuste
+# 📚 Objetivo acadêmico
 
-## Objetivo acadêmico
+Este projeto foi desenvolvido para demonstrar conhecimentos em:
 
-Este projeto foi desenvolvido com o objetivo de demonstrar a implementação de uma API REST para gestão de jornada de trabalho, utilizando boas práticas de desenvolvimento backend, autenticação segura e controle de permissões.
-
-## Autor
-
-Projeto desenvolvido por **Catalina Lopes** como parte do Trabalho de Conclusão de Curso em Engenharia de Software.
+* desenvolvimento de APIs REST
+* autenticação com JWT
+* organização de arquitetura backend
+* uso de ORM
+* controle de acesso
+* auditoria de ações
+* versionamento com Git
