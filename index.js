@@ -1,32 +1,37 @@
-const errorHandler = require("./middlewares/errorHandler");
-const { login } = require("./controllers/authController");
-const crypto = require("crypto");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const { PrismaClient } = require("@prisma/client");
-const app = express();
-const prisma = new PrismaClient();
+
+const { login } = require("./controllers/authController");
+const { auth, isAdmin } = require("./middlewares/auth");
+const errorHandler = require("./middlewares/errorHandler");
+
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const { auth, isAdmin} = require("./middlewares/auth");
 const reportRoutes = require("./routes/reportRoutes");
+
+const app = express();
+const prisma = new PrismaClient();
+
 app.use(cors());
 app.use(express.json());
+
+// rotas organizadas
+app.use("/admin/reports", reportRoutes);
 app.use("/admin", adminRoutes);
 app.use("/", userRoutes);
-app.use("/admin/reports", reportRoutes);
+
 // rota teste
 app.get("/", (req, res) => {
   res.send("Servidor do TCC está funcionando!");
 });
-// ADMIN REPORT - horas de um usuário por período
-// Horas trabalhadas hoje (usuário logado)
-// Admin: horas de todos HOJE
-// Admin: horas de todos na SEMANA (segunda a domingo)
-// ADMIN - horas trabalhadas hoje
-// buscar usuários do banco 
+
+// login
+app.post("/login", login);
+
+// usuários
 app.get("/users", auth, isAdmin, async (req, res) => {
   try {
     const users = await prisma.users.findMany({
@@ -50,18 +55,17 @@ app.post("/users", async (req, res) => {
   try {
     const { full_name, email, password, role } = req.body;
 
-    // criptografar senha
     const password_hash = await bcrypt.hash(password, 10);
 
-   const user = await prisma.users.create({
-  data: {
-    id: crypto.randomUUID(),   
-    full_name,
-    email,
-    password_hash,
-    role: role || "user"
-  }
-});
+    const user = await prisma.users.create({
+      data: {
+        id: crypto.randomUUID(),
+        full_name,
+        email,
+        password_hash,
+        role: role || "user"
+      }
+    });
 
     res.json({
       message: "Usuário criado com sucesso",
@@ -72,12 +76,11 @@ app.post("/users", async (req, res) => {
         role: user.role
       }
     });
-
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-// buscar 1 usuário por id
+
 app.get("/users/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -103,32 +106,33 @@ app.get("/users/:id", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.put("/users/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
     const user = await prisma.users.update({
-  where: { id },
-  data: req.body,
-  select: {
-    id: true,
-    full_name: true,
-    email: true,
-    role: true,
-    created_at: true,
-    updated_at: true
-  }
-});
+      where: { id },
+      data: req.body,
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
 
     res.json(user);
   } catch (error) {
-    // Prisma dá erro se não achar o registro
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
     res.status(500).json({ error: error.message });
   }
 });
+
 app.delete("/users/:id", auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -145,8 +149,8 @@ app.delete("/users/:id", auth, isAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.post("/login", login);
-// Ver minhas jornadas
+
+// jornadas extras
 app.get("/my-times", auth, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -169,7 +173,7 @@ app.get("/my-times", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// Admin: ver todas as jornadas
+
 app.get("/times", auth, isAdmin, async (req, res) => {
   try {
     const entries = await prisma.work_entries.findMany({
@@ -198,11 +202,11 @@ app.get("/times", auth, isAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// Admin: lista detalhada dos pontos de HOJE
-// Admin: lista detalhada por período
-// Ex: /admin/entries?start=2026-03-01&end=2026-03-07
+
+// middleware global de erro
+app.use(errorHandler);
+
 // iniciar servidor
 app.listen(3000, () => {
   console.log("Servidor rodando em http://localhost:3000");
 });
-app.use(errorHandler);
