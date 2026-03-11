@@ -114,8 +114,58 @@ async function getMe(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+async function getUsers(req, res) {
+  try {
+    const users = await prisma.users.findMany({
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true
+      }
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function createUser(req, res) {
+  try {
+    const { full_name, email, password, role } = req.body;
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.users.create({
+      data: {
+        id: crypto.randomUUID(),
+        full_name,
+        email,
+        password_hash,
+        role: role || "user"
+      }
+    });
+
+    res.json({
+      message: "Usuário criado com sucesso",
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
 module.exports = {
+    getMe,
   getMyHoursToday,
   getMyHoursWeek,
-  getMe
+  getUsers,
+  createUser
 };
