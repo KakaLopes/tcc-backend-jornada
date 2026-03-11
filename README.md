@@ -291,6 +291,23 @@ http://localhost:3000
 
 ---
 
+## Testando a API
+
+As rotas podem ser testadas utilizando:
+
+- Thunder Client
+- Postman
+- Insomnia
+
+---
+
+## Futuras melhorias
+
+- aplicativo mobile (React Native)
+- dashboard web
+- exportação de relatórios
+- controle de intervalos
+
 # 👨‍🎓 Autor
 
 Projeto desenvolvido por **Catalina Lopes**
