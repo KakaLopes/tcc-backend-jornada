@@ -1,0 +1,5 @@
+DiscordSetup.exe
+*.exe
+node_modules/
+.expo/
+.vscode/
