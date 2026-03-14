@@ -1,33 +1,38 @@
-# TCC Backend – Sistema de Gestão de Jornada de Trabalho
+# ⏱ Sistema de Gestão de Jornada de Trabalho
 
-## 📌 Descrição
+Este projeto foi desenvolvido como parte do **Trabalho de Conclusão de Curso (TCC)** do curso de **Software Engineering**.
 
-Este projeto foi desenvolvido como parte do Trabalho de Conclusão de Curso (TCC) em **Software Engineering**.
+O sistema permite o registro e gerenciamento da jornada de trabalho de usuários, incluindo controle de ponto, ajustes de jornada, relatórios administrativos e auditoria de ações.
 
-O sistema permite o **registro e gerenciamento da jornada de trabalho de usuários**, incluindo:
-
-* registro de entrada (clock-in)
-* registro de saída (clock-out)
-* histórico de jornadas
-* solicitação de ajustes de ponto
-* aprovação ou rejeição de ajustes por administradores
-* relatórios de horas trabalhadas
-* auditoria de ações administrativas
-
-O backend foi desenvolvido utilizando **Node.js**, **Express**, **Prisma ORM** e **MySQL**.
+O backend foi desenvolvido utilizando **Node.js**, **Express**, **Prisma ORM** e **MySQL**, seguindo uma arquitetura de **API REST**.
 
 ---
 
 # 🚀 Tecnologias Utilizadas
 
-* Node.js
-* Express
-* Prisma ORM
-* MySQL
-* JWT (JSON Web Token)
-* bcrypt
-* Thunder Client (testes de API)
-* GitHub (controle de versão)
+- Node.js
+- Express
+- Prisma ORM
+- MySQL
+- JWT (JSON Web Token)
+- bcrypt
+- Thunder Client
+- Git e GitHub
+- React Native (Expo)
+
+---
+
+# 🏗 Arquitetura do Sistema
+
+O backend segue uma arquitetura baseada em **API REST**, organizada em camadas:
+
+- Controllers – lógica de negócio
+- Routes – definição das rotas
+- Middlewares – autenticação
+- Prisma ORM – acesso ao banco
+- MySQL – armazenamento de dados
+
+A autenticação utiliza **JWT (JSON Web Token)**.
 
 ---
 
@@ -62,9 +67,7 @@ backend
 
 # 🔐 Autenticação
 
-A autenticação é feita utilizando **JWT (JSON Web Token)**.
-
-Após realizar login, o token deve ser enviado no header:
+Após login, o token deve ser enviado no header:
 
 ```
 Authorization: Bearer TOKEN
@@ -78,7 +81,7 @@ Authorization: Bearer TOKEN
 
 POST `/users`
 
-```
+```json
 {
  "full_name": "Maria Silva",
  "email": "silva@email.com",
@@ -92,7 +95,7 @@ POST `/users`
 
 POST `/login`
 
-```
+```json
 {
  "email": "silva@email.com",
  "password": "123456"
@@ -103,33 +106,35 @@ POST `/login`
 
 # ⏱ Gestão de Jornada
 
-## Registrar entrada
+Registrar entrada
 
-POST `/clock-in`
+```
+POST /clock-in
+```
 
----
+Registrar saída
 
-## Registrar saída
+```
+POST /clock-out
+```
 
-POST `/clock-out`
+Histórico de jornadas
 
----
-
-## Histórico de jornadas
-
-GET `/my-entries`
+```
+GET /my-entries
+```
 
 ---
 
 # 📝 Ajustes de ponto
 
-Usuários podem solicitar correção de horários.
-
-## Solicitar ajuste
-
-POST `/adjustments/request`
+Solicitar ajuste
 
 ```
+POST /adjustments/request
+```
+
+```json
 {
  "work_entry_id": "ID_DO_REGISTRO",
  "old_value": "2026-03-10T08:11:00.000Z",
@@ -142,48 +147,45 @@ POST `/adjustments/request`
 
 # 👨‍💼 Funcionalidades do Administrador
 
-## Dashboard
+Dashboard
 
-GET `/admin/dashboard`
+```
+GET /admin/dashboard
+```
 
-Mostra resumo do sistema:
+Aprovar ajuste
 
-* total de usuários
-* total de jornadas
-* horas trabalhadas
-* usuário mais ativo
+```
+POST /admin/adjustments/:id/approve
+```
 
----
+Rejeitar ajuste
 
-## Aprovar ajuste
-
-POST `/admin/adjustments/:id/approve`
-
----
-
-## Rejeitar ajuste
-
-POST `/admin/adjustments/:id/reject`
+```
+POST /admin/adjustments/:id/reject
+```
 
 ---
 
 # 📊 Relatórios
 
-## Horas trabalhadas hoje
+Horas hoje
 
-GET `/admin/reports/hours-today`
+```
+GET /admin/reports/hours-today
+```
 
----
+Horas semana
 
-## Horas trabalhadas na semana
+```
+GET /admin/reports/hours-week
+```
 
-GET `/admin/reports/hours-week`
+Horas por período
 
----
-
-## Horas por período
-
-GET `/admin/reports/hours-range`
+```
+GET /admin/reports/hours-range
+```
 
 Exemplo:
 
@@ -193,44 +195,23 @@ Exemplo:
 
 ---
 
-# 📈 Estatísticas do sistema
-
-GET `/admin/system-stats`
-
-Retorna:
-
-* total de usuários
-* total de jornadas
-* total de ajustes
-* ajustes pendentes
-* total de horas registradas
-
----
-
 # 🧾 Auditoria
 
-O sistema registra ações administrativas.
-
-GET `/admin/audit-logs`
-
-Exibe:
-
-* ação realizada
-* entidade afetada
-* usuário responsável
-* data da ação
+```
+GET /admin/audit-logs
+```
 
 ---
 
 # ❤️ Health Check
 
-Verifica se o sistema está funcionando corretamente.
-
-GET `/admin/health`
+```
+GET /admin/health
+```
 
 Resposta:
 
-```
+```json
 {
  "status": "ok",
  "server": "online",
@@ -242,48 +223,38 @@ Resposta:
 
 # ▶️ Como executar o projeto
 
-## 1️⃣ Clonar repositório
+Clonar repositório
 
 ```
-git clone https://github.com/SEU_USUARIO/tcc-backend-jornada
+git clone https://github.com/KakaLopes/tcc-backend-jornada
 ```
 
----
-
-## 2️⃣ Instalar dependências
+Instalar dependências
 
 ```
 npm install
 ```
 
----
-
-## 3️⃣ Configurar banco de dados
-
-Criar arquivo `.env`
+Configurar `.env`
 
 ```
 DATABASE_URL="mysql://usuario:senha@localhost:3306/tcc_db"
 JWT_SECRET="secret"
 ```
 
----
-
-## 4️⃣ Rodar Prisma
+Rodar Prisma
 
 ```
 npx prisma migrate dev
 ```
 
----
-
-## 5️⃣ Iniciar servidor
+Iniciar servidor
 
 ```
 node index.js
 ```
 
-Servidor rodando em:
+Servidor:
 
 ```
 http://localhost:3000
@@ -291,38 +262,34 @@ http://localhost:3000
 
 ---
 
-## Testando a API
+# 📱 Aplicativo Mobile
 
-As rotas podem ser testadas utilizando:
+O projeto possui um aplicativo mobile em **React Native (Expo)** com:
 
-- Thunder Client
-- Postman
-- Insomnia
+- login
+- registro de entrada
+- registro de saída
+- consulta de horas trabalhadas
+
+O aplicativo consome a API deste backend.
 
 ---
-
-## Futuras melhorias
-
-- aplicativo mobile (React Native)
-- dashboard web
-- exportação de relatórios
-- controle de intervalos
 
 # 👨‍🎓 Autor
 
-Projeto desenvolvido por **Catalina Lopes**
-Curso: Software Engineering
+Catalina Lopes  
+Software Engineering – TCC
 
 ---
 
-# 📚 Objetivo acadêmico
+# 📚 Objetivo Acadêmico
 
-Este projeto foi desenvolvido para demonstrar conhecimentos em:
+Este projeto demonstra conhecimentos em:
 
-* desenvolvimento de APIs REST
-* autenticação com JWT
-* organização de arquitetura backend
-* uso de ORM
-* controle de acesso
-* auditoria de ações
-* versionamento com Git
+- desenvolvimento de APIs REST
+- autenticação com JWT
+- arquitetura backend
+- uso de ORM
+- controle de acesso
+- auditoria de ações
+- versionamento com Git

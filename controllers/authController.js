@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 
 async function login(req, res) {
   try {
-
     const { email, password } = req.body;
 
     const user = await prisma.users.findUnique({
@@ -34,10 +33,17 @@ async function login(req, res) {
     );
 
     return res.json({
-      message: "Login realizado",
-      token
+      message: "Login realizado com sucesso",
+      token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
     });
-
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
