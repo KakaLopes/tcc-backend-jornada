@@ -293,3 +293,4 @@ Este projeto demonstra conhecimentos em:
 - controle de acesso
 - auditoria de ações
 - versionamento com Git
+- versionamento com Git
