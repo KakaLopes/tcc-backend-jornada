@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://vic-cache-secretariat-eliminate.trycloudflare.com",
+  baseURL: "https://helps-turtle-partition-discipline.trycloudflare.com",
   timeout: 15000,
 });
 
