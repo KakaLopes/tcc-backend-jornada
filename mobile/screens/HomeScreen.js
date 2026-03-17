@@ -130,6 +130,12 @@ export default function HomeScreen() {
       <View style={styles.button}>
         <Button title="Registrar saída" onPress={handleClockOut} />
       </View>
+<View style={styles.button}>
+  <Button
+    title="Ver histórico"
+    onPress={() => router.push("/history")}
+  />
+</View>
 
       <View style={styles.button}>
         <Button title="Sair" onPress={handleLogout} />
