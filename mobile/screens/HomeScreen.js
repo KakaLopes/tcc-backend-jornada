@@ -160,7 +160,12 @@ export default function HomeScreen() {
           onPress={() => router.push("/history")}
         />
       </View>
-
+<View style={styles.button}>
+  <Button
+    title="Painel Admin"
+    onPress={() => router.push("/admin-adjustments")}
+  />
+</View>
       <View style={styles.button}>
         <Button title="Sair" onPress={handleLogout} />
       </View>
