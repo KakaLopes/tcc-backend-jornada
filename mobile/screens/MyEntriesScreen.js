@@ -47,6 +47,82 @@ export default function MyEntriesScreen() {
       setLoading(false);
     }
   }
+async function handleAdjust(item) {
+  Alert.prompt(
+    "Novo horário",
+    "Digite o novo horário no formato HH:MM",
+    [
+      {
+        text: "Cancelar",
+        style: "cancel",
+      },
+      {
+        text: "Continuar",
+        onPress: (newTime) => {
+          if (!newTime || !/^\d{2}:\d{2}$/.test(newTime)) {
+            Alert.alert("Erro", "Digite o horário no formato HH:MM");
+            return;
+          }
+
+          Alert.prompt(
+            "Motivo do ajuste",
+            "Descreva o motivo do ajuste",
+            [
+              {
+                text: "Cancelar",
+                style: "cancel",
+              },
+              {
+                text: "Enviar",
+                onPress: async (reason) => {
+                  try {
+                    const token = await AsyncStorage.getItem("token");
+
+                    // pegar a data original
+                    const originalDate = new Date(item.clock_in);
+
+                    // montar nova data com o horário digitado
+                    const [hours, minutes] = newTime.split(":");
+
+                    const newDate = new Date(originalDate);
+                    newDate.setHours(Number(hours));
+                    newDate.setMinutes(Number(minutes));
+                    newDate.setSeconds(0);
+
+                    await api.post(
+                      "/adjustments/request",
+                      {
+                        work_entry_id: item.id,
+                        old_value: item.clock_in,
+                        new_value: newDate.toISOString(),
+                        reason,
+                      },
+                      {
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      }
+                    );
+
+                    Alert.alert("Sucesso", "Solicitação enviada!");
+                  } catch (error) {
+                    console.log("ERRO AJUSTE:", error?.response?.data || error.message);
+
+                    Alert.alert(
+                      "Erro",
+                      error?.response?.data?.error ||
+                        "Não foi possível enviar solicitação"
+                    );
+                  }
+                },
+              },
+            ]
+          );
+        },
+      },
+    ]
+  );
+}
 
   function formatDate(date) {
     return new Date(date).toLocaleDateString("pt-BR");
@@ -71,18 +147,10 @@ export default function MyEntriesScreen() {
 
   function renderStatus(item) {
     if (!item.clock_out) {
-      return (
-        <Text style={styles.statusOpen}>
-          Status: jornada em andamento
-        </Text>
-      );
+      return <Text style={styles.statusOpen}>Status: jornada em andamento</Text>;
     }
 
-    return (
-      <Text style={styles.statusClosed}>
-        Status: jornada finalizada
-      </Text>
-    );
+    return <Text style={styles.statusClosed}>Status: jornada finalizada</Text>;
   }
 
   function renderItem({ item }) {
@@ -104,7 +172,9 @@ export default function MyEntriesScreen() {
         <Text style={styles.label}>
           Total:{" "}
           <Text style={styles.value}>
-            {item.clock_out ? formatDuration(item.duration_minutes) : "em andamento"}
+            {item.clock_out
+              ? formatDuration(item.duration_minutes)
+              : "em andamento"}
           </Text>
         </Text>
 
@@ -115,6 +185,13 @@ export default function MyEntriesScreen() {
             Observação: <Text style={styles.value}>{item.note}</Text>
           </Text>
         ) : null}
+
+        <TouchableOpacity
+          style={styles.adjustButton}
+          onPress={() => handleAdjust(item)}
+        >
+          <Text style={styles.adjustText}>Solicitar ajuste</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -209,5 +286,16 @@ const styles = StyleSheet.create({
     marginTop: 30,
     fontSize: 16,
     color: "#666",
+  },
+  adjustButton: {
+    marginTop: 10,
+    backgroundColor: "#2563eb",
+    padding: 8,
+    borderRadius: 6,
+  },
+  adjustText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
   },
 });
