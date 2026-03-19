@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Button, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import api from "../services/api";
@@ -16,57 +23,76 @@ export default function HomeScreen() {
     loadDashboardData();
   }, []);
 
-  async function loadUser() {
-    try {
-      const savedUser = await AsyncStorage.getItem("user");
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      }
-    } catch (error) {
-      console.log("ERRO LOAD USER:", error);
+ async function loadUser() {
+  try {
+    const savedUser = await AsyncStorage.getItem("user");
+    const token = await AsyncStorage.getItem("token");
+
+    if (!savedUser || !token) {
+      router.replace("login");
+      return;
+    }
+
+    setUser(JSON.parse(savedUser));
+  } catch (error) {
+    console.log("LOAD USER ERROR:", error);
+    router.replace("login");
+  }
+}
+
+async function loadDashboardData() {
+  try {
+    const token = await AsyncStorage.getItem("token");
+
+    if (!token) {
+      router.replace("login");
+      return;
+    }
+
+    const [hoursResponse, entriesResponse] = await Promise.all([
+      api.get("/my-hours-today", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      api.get("/my-entries", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    ]);
+
+    setHoursToday(hoursResponse.data.total_hours || 0);
+
+    const entries = entriesResponse.data || [];
+    setEntriesCount(entries.length);
+
+    const hasOpenEntry = entries.some((item) => !item.clock_out);
+    setOpenEntry(hasOpenEntry);
+  } catch (error) {
+    console.log(
+      "DASHBOARD ERROR:",
+      error?.response?.data || error.message
+    );
+
+    if (
+      error?.response?.status === 401 ||
+      error?.response?.data?.error?.includes("Token")
+    ) {
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      router.replace("login");
+      return;
     }
   }
-
-  async function loadDashboardData() {
-    try {
-      const token = await AsyncStorage.getItem("token");
-
-      if (!token) return;
-
-      const [hoursResponse, entriesResponse] = await Promise.all([
-        api.get("/my-hours-today", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        api.get("/my-entries", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-      ]);
-
-      setHoursToday(hoursResponse.data.total_hours || 0);
-
-      const entries = entriesResponse.data || [];
-      setEntriesCount(entries.length);
-
-      const hasOpenEntry = entries.some((item) => !item.clock_out);
-      setOpenEntry(hasOpenEntry);
-    } catch (error) {
-      console.log(
-        "ERRO DASHBOARD:",
-        error?.response?.data || error.message
-      );
-    }
-  }
+}
 
   async function handleClockIn() {
     try {
       const token = await AsyncStorage.getItem("token");
 
       if (!token) {
-        Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
+        Alert.alert("Error", "Token not found. Please log in again.");
         return;
       }
 
@@ -80,14 +106,14 @@ export default function HomeScreen() {
         }
       );
 
-      Alert.alert("Sucesso", response.data.message || "Entrada registrada");
+      Alert.alert("Success", response.data.message || "Clock-in registered");
       loadDashboardData();
     } catch (error) {
-      console.log("ERRO CLOCK-IN:", error?.response?.data || error.message);
+      console.log("CLOCK-IN ERROR:", error?.response?.data || error.message);
 
       Alert.alert(
-        "Erro",
-        error?.response?.data?.error || "Não foi possível registrar entrada"
+        "Error",
+        error?.response?.data?.error || "Unable to register clock-in"
       );
     }
   }
@@ -97,7 +123,7 @@ export default function HomeScreen() {
       const token = await AsyncStorage.getItem("token");
 
       if (!token) {
-        Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
+        Alert.alert("Error", "Token not found. Please log in again.");
         return;
       }
 
@@ -111,14 +137,14 @@ export default function HomeScreen() {
         }
       );
 
-      Alert.alert("Sucesso", response.data.message || "Saída registrada");
+      Alert.alert("Success", response.data.message || "Clock-out registered");
       loadDashboardData();
     } catch (error) {
-      console.log("ERRO CLOCK-OUT:", error?.response?.data || error.message);
+      console.log("CLOCK-OUT ERROR:", error?.response?.data || error.message);
 
       Alert.alert(
-        "Erro",
-        error?.response?.data?.error || "Não foi possível registrar saída"
+        "Error",
+        error?.response?.data?.error || "Unable to register clock-out"
       );
     }
   }
@@ -126,97 +152,174 @@ export default function HomeScreen() {
   async function handleLogout() {
     await AsyncStorage.removeItem("user");
     await AsyncStorage.removeItem("token");
-    router.replace("/");
+    router.replace("login");
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Home</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Time Tracker</Text>
 
-      <Text style={styles.text}>
-        Bem-vinda, {user?.full_name || "Usuária"} 👋
+      <Text style={styles.welcome}>
+        Welcome, {user?.full_name || "User"} 👋
       </Text>
 
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Resumo</Text>
-        <Text style={styles.infoText}>Horas hoje: {hoursToday}h</Text>
-        <Text style={styles.infoText}>Total de registros: {entriesCount}</Text>
-        <Text style={openEntry ? styles.statusOpen : styles.statusClosed}>
-          {openEntry ? "Jornada em andamento" : "Nenhuma jornada aberta"}
-        </Text>
+        <Text style={styles.infoTitle}>Daily Summary</Text>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Hours today</Text>
+          <Text style={styles.infoValue}>{hoursToday}h</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Total entries</Text>
+          <Text style={styles.infoValue}>{entriesCount}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Shift status</Text>
+          <Text style={openEntry ? styles.statusOpen : styles.statusClosed}>
+            {openEntry ? "Work in progress" : "No active shift"}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.button}>
-        <Button title="Registrar entrada" onPress={handleClockIn} />
-      </View>
+      <TouchableOpacity style={styles.primaryButton} onPress={handleClockIn}>
+        <Text style={styles.primaryButtonText}>Clock In</Text>
+      </TouchableOpacity>
 
-      <View style={styles.button}>
-        <Button title="Registrar saída" onPress={handleClockOut} />
-      </View>
+      <TouchableOpacity style={styles.secondaryButton} onPress={handleClockOut}>
+        <Text style={styles.secondaryButtonText}>Clock Out</Text>
+      </TouchableOpacity>
 
-      <View style={styles.button}>
-        <Button
-          title="Ver histórico"
-          onPress={() => router.push("/history")}
-        />
-      </View>
-<View style={styles.button}>
-  <Button
-    title="Painel Admin"
-    onPress={() => router.push("/admin-adjustments")}
-  />
-</View>
-      <View style={styles.button}>
-        <Button title="Sair" onPress={handleLogout} />
-      </View>
-    </View>
+      <TouchableOpacity
+        style={styles.secondaryButton}
+        onPress={() => router.push("/history")}
+      >
+        <Text style={styles.secondaryButtonText}>View History</Text>
+      </TouchableOpacity>
+
+      {user?.role === "admin" && (
+        <TouchableOpacity
+          style={styles.adminButton}
+          onPress={() => router.push("/admin-adjustments")}
+        >
+          <Text style={styles.adminButtonText}>Admin Panel</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: "center",
+    flexGrow: 1,
+    backgroundColor: "#f5f7fb",
     padding: 20,
-    backgroundColor: "#fff",
+    justifyContent: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 20,
     textAlign: "center",
+    color: "#111827",
+    marginBottom: 10,
   },
-  text: {
+  welcome: {
     fontSize: 18,
     textAlign: "center",
-    marginBottom: 20,
+    color: "#374151",
+    marginBottom: 24,
   },
   infoCard: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 25,
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
   infoTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 14,
+  },
+  infoRow: {
     marginBottom: 10,
   },
-  infoText: {
-    fontSize: 16,
-    marginBottom: 6,
+  infoLabel: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#111827",
   },
   statusOpen: {
-    marginTop: 8,
-    color: "#d97706",
+    fontSize: 16,
     fontWeight: "bold",
+    color: "#d97706",
   },
   statusClosed: {
-    marginTop: 8,
+    fontSize: 16,
+    fontWeight: "bold",
     color: "#15803d",
+  },
+  primaryButton: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  primaryButtonText: {
+    color: "#ffffff",
+    textAlign: "center",
+    fontSize: 16,
     fontWeight: "bold",
   },
-  button: {
-    marginBottom: 15,
+  secondaryButton: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  secondaryButtonText: {
+    color: "#111827",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  adminButton: {
+    backgroundColor: "#7c3aed",
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  adminButtonText: {
+    color: "#ffffff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  logoutButton: {
+    backgroundColor: "#dc2626",
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  logoutButtonText: {
+    color: "#ffffff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

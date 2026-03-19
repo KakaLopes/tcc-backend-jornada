@@ -25,7 +25,7 @@ export default function MyEntriesScreen() {
       const token = await AsyncStorage.getItem("token");
 
       if (!token) {
-        Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
+        Alert.alert("Error", "Token not found. Please log in again.");
         return;
       }
 
@@ -35,101 +35,102 @@ export default function MyEntriesScreen() {
         },
       });
 
-      setEntries(response.data);
+      setEntries(response.data || []);
     } catch (error) {
-      console.log("ERRO HISTORICO:", error?.response?.data || error.message);
+      console.log("HISTORY ERROR:", error?.response?.data || error.message);
 
       Alert.alert(
-        "Erro",
-        error?.response?.data?.error || "Não foi possível carregar o histórico"
+        "Error",
+        error?.response?.data?.error || "Unable to load history"
       );
     } finally {
       setLoading(false);
     }
   }
-async function handleAdjust(item) {
-  Alert.prompt(
-    "Novo horário",
-    "Digite o novo horário no formato HH:MM",
-    [
-      {
-        text: "Cancelar",
-        style: "cancel",
-      },
-      {
-        text: "Continuar",
-        onPress: (newTime) => {
-          if (!newTime || !/^\d{2}:\d{2}$/.test(newTime)) {
-            Alert.alert("Erro", "Digite o horário no formato HH:MM");
-            return;
-          }
 
-          Alert.prompt(
-            "Motivo do ajuste",
-            "Descreva o motivo do ajuste",
-            [
-              {
-                text: "Cancelar",
-                style: "cancel",
-              },
-              {
-                text: "Enviar",
-                onPress: async (reason) => {
-                  try {
-                    const token = await AsyncStorage.getItem("token");
-
-                    // pegar a data original
-                    const originalDate = new Date(item.clock_in);
-
-                    // montar nova data com o horário digitado
-                    const [hours, minutes] = newTime.split(":");
-
-                    const newDate = new Date(originalDate);
-                    newDate.setHours(Number(hours));
-                    newDate.setMinutes(Number(minutes));
-                    newDate.setSeconds(0);
-
-                    await api.post(
-                      "/adjustments/request",
-                      {
-                        work_entry_id: item.id,
-                        old_value: item.clock_in,
-                        new_value: newDate.toISOString(),
-                        reason,
-                      },
-                      {
-                        headers: {
-                          Authorization: `Bearer ${token}`,
-                        },
-                      }
-                    );
-
-                    Alert.alert("Sucesso", "Solicitação enviada!");
-                  } catch (error) {
-                    console.log("ERRO AJUSTE:", error?.response?.data || error.message);
-
-                    Alert.alert(
-                      "Erro",
-                      error?.response?.data?.error ||
-                        "Não foi possível enviar solicitação"
-                    );
-                  }
-                },
-              },
-            ]
-          );
+  async function handleAdjust(item) {
+    Alert.prompt(
+      "New time",
+      "Enter the new time in HH:MM format",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
         },
-      },
-    ]
-  );
-}
+        {
+          text: "Continue",
+          onPress: (newTime) => {
+            if (!newTime || !/^\d{2}:\d{2}$/.test(newTime)) {
+              Alert.alert("Error", "Please enter the time in HH:MM format.");
+              return;
+            }
+
+            Alert.prompt(
+              "Adjustment reason",
+              "Describe the reason for this adjustment",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Submit",
+                  onPress: async (reason) => {
+                    try {
+                      const token = await AsyncStorage.getItem("token");
+
+                      const originalDate = new Date(item.clock_in);
+                      const [hours, minutes] = newTime.split(":");
+
+                      const newDate = new Date(originalDate);
+                      newDate.setHours(Number(hours));
+                      newDate.setMinutes(Number(minutes));
+                      newDate.setSeconds(0);
+
+                      await api.post(
+                        "/adjustments/request",
+                        {
+                          work_entry_id: item.id,
+                          old_value: item.clock_in,
+                          new_value: newDate.toISOString(),
+                          reason,
+                        },
+                        {
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                        }
+                      );
+
+                      Alert.alert("Success", "Adjustment request sent successfully.");
+                    } catch (error) {
+                      console.log(
+                        "ADJUSTMENT ERROR:",
+                        error?.response?.data || error.message
+                      );
+
+                      Alert.alert(
+                        "Error",
+                        error?.response?.data?.error ||
+                          "Unable to send adjustment request"
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
 
   function formatDate(date) {
-    return new Date(date).toLocaleDateString("pt-BR");
+    return new Date(date).toLocaleDateString("en-IE");
   }
 
   function formatTime(date) {
-    return new Date(date).toLocaleTimeString("pt-BR", {
+    return new Date(date).toLocaleTimeString("en-IE", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -147,10 +148,10 @@ async function handleAdjust(item) {
 
   function renderStatus(item) {
     if (!item.clock_out) {
-      return <Text style={styles.statusOpen}>Status: jornada em andamento</Text>;
+      return <Text style={styles.statusOpen}>Status: work in progress</Text>;
     }
 
-    return <Text style={styles.statusClosed}>Status: jornada finalizada</Text>;
+    return <Text style={styles.statusClosed}>Status: completed</Text>;
   }
 
   function renderItem({ item }) {
@@ -159,13 +160,14 @@ async function handleAdjust(item) {
         <Text style={styles.date}>📅 {formatDate(item.clock_in)}</Text>
 
         <Text style={styles.label}>
-          Entrada: <Text style={styles.value}>{formatTime(item.clock_in)}</Text>
+          Clock-in:{" "}
+          <Text style={styles.value}>{formatTime(item.clock_in)}</Text>
         </Text>
 
         <Text style={styles.label}>
-          Saída:{" "}
+          Clock-out:{" "}
           <Text style={styles.value}>
-            {item.clock_out ? formatTime(item.clock_out) : "em aberto"}
+            {item.clock_out ? formatTime(item.clock_out) : "Open"}
           </Text>
         </Text>
 
@@ -174,7 +176,7 @@ async function handleAdjust(item) {
           <Text style={styles.value}>
             {item.clock_out
               ? formatDuration(item.duration_minutes)
-              : "em andamento"}
+              : "In progress"}
           </Text>
         </Text>
 
@@ -182,7 +184,7 @@ async function handleAdjust(item) {
 
         {item.note ? (
           <Text style={styles.note}>
-            Observação: <Text style={styles.value}>{item.note}</Text>
+            Note: <Text style={styles.value}>{item.note}</Text>
           </Text>
         ) : null}
 
@@ -190,7 +192,7 @@ async function handleAdjust(item) {
           style={styles.adjustButton}
           onPress={() => handleAdjust(item)}
         >
-          <Text style={styles.adjustText}>Solicitar ajuste</Text>
+          <Text style={styles.adjustText}>Request Adjustment</Text>
         </TouchableOpacity>
       </View>
     );
@@ -198,16 +200,16 @@ async function handleAdjust(item) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Histórico de Jornadas</Text>
+      <Text style={styles.title}>Work History</Text>
 
       <TouchableOpacity style={styles.button} onPress={loadEntries}>
         <Text style={styles.buttonText}>
-          {loading ? "Atualizando..." : "Atualizar histórico"}
+          {loading ? "Updating..." : "Refresh History"}
         </Text>
       </TouchableOpacity>
 
       {entries.length === 0 && !loading ? (
-        <Text style={styles.empty}>Nenhum registro encontrado.</Text>
+        <Text style={styles.empty}>No records found.</Text>
       ) : (
         <FlatList
           data={entries}
@@ -223,19 +225,20 @@ async function handleAdjust(item) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f7f7",
+    backgroundColor: "#f5f7fb",
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 18,
     textAlign: "center",
+    color: "#111827",
   },
   button: {
-    backgroundColor: "#2e7d6b",
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: "#2563eb",
+    paddingVertical: 14,
+    borderRadius: 10,
     marginBottom: 20,
   },
   buttonText: {
@@ -246,30 +249,31 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#e5e7eb",
   },
   date: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 10,
+    color: "#111827",
   },
   label: {
     fontSize: 15,
-    marginBottom: 4,
-    color: "#333",
+    marginBottom: 5,
+    color: "#374151",
   },
   value: {
     fontWeight: "600",
-    color: "#000",
+    color: "#111827",
   },
   note: {
     marginTop: 8,
     fontSize: 14,
-    color: "#444",
+    color: "#4b5563",
   },
   statusOpen: {
     marginTop: 10,
@@ -285,13 +289,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 30,
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
   },
   adjustButton: {
-    marginTop: 10,
+    marginTop: 12,
     backgroundColor: "#2563eb",
-    padding: 8,
-    borderRadius: 6,
+    padding: 10,
+    borderRadius: 8,
   },
   adjustText: {
     color: "#fff",

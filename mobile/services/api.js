@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://mild-paragraphs-textbook-worlds.trycloudflare.com",
+  baseURL: "https://tcc-backend-jornada-production.up.railway.app",
   timeout: 15000,
 });
 
