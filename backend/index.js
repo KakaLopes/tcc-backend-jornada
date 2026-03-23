@@ -1,8 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const { PrismaClient } = require("@prisma/client");
 
 const { login } = require("./controllers/authController");
@@ -19,15 +17,15 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// rota teste
+app.get("/", (req, res) => {
+  res.status(200).send("Servidor do TCC está funcionando!");
+});
+
 // rotas organizadas
 app.use("/admin/reports", reportRoutes);
 app.use("/admin", adminRoutes);
 app.use("/", userRoutes);
-
-// rota teste
-app.get("/", (req, res) => {
-  res.send("Servidor do TCC está funcionando!");
-});
 
 // login
 app.post("/login", login);
@@ -109,6 +107,6 @@ app.use(errorHandler);
 // iniciar servidor
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
