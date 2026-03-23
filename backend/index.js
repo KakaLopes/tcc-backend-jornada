@@ -13,12 +13,13 @@ const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 const prisma = new PrismaClient();
-
+console.log("🔥 SERVER STARTING...");
 app.use(cors());
 app.use(express.json());
 
 // rota teste
 app.get("/", (req, res) => {
+  console.log("🔥 ROOT HIT");
   res.status(200).send("Servidor do TCC está funcionando!");
 });
 
