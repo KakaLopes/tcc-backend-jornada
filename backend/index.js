@@ -102,6 +102,23 @@ app.get("/times", auth, isAdmin, async (req, res) => {
   }
 });
 
+app.get("/debug-users", async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true
+      }
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // middleware global de erro
 app.use(errorHandler);
 
