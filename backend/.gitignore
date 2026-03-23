@@ -1,0 +1,10 @@
+node_modules
+.env
+/generated/prisma
+generated
+.prisma
+DiscordSetup.exe
+*.exe
+node_modules/
+.expo/
+.vscode/
