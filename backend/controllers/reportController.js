@@ -1,6 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}min`;
+}
+
 // ADMIN REPORT - horas de um usuário por período
 async function getUserHoursRange(req, res) {
   try {
@@ -8,7 +14,7 @@ async function getUserHoursRange(req, res) {
 
     if (!user_id || !start || !end) {
       return res.status(400).json({
-        error: "user_id, start e end são obrigatórios"
+        error: "user_id, start e end são obrigatórios",
       });
     }
 
@@ -21,8 +27,8 @@ async function getUserHoursRange(req, res) {
         id: true,
         full_name: true,
         email: true,
-        role: true
-      }
+        role: true,
+      },
     });
 
     if (!user) {
@@ -34,12 +40,12 @@ async function getUserHoursRange(req, res) {
         user_id,
         clock_in: {
           gte: startDate,
-          lte: endDate
-        }
+          lte: endDate,
+        },
       },
       orderBy: {
-        clock_in: "asc"
-      }
+        clock_in: "asc",
+      },
     });
 
     const totalMinutes = entries.reduce((sum, entry) => {
@@ -53,17 +59,13 @@ async function getUserHoursRange(req, res) {
       total_entries: entries.length,
       total_minutes: totalMinutes,
       total_hours: Number((totalMinutes / 60).toFixed(2)),
-      entries
+      entries,
     });
-
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
 
-module.exports = {
-  getUserHoursRange
-};
 async function getHoursToday(req, res) {
   try {
     const startOfDay = new Date();
@@ -76,21 +78,21 @@ async function getHoursToday(req, res) {
       where: {
         clock_in: {
           gte: startOfDay,
-          lte: endOfDay
-        }
+          lte: endOfDay,
+        },
       },
       include: {
         users: {
           select: {
             id: true,
             full_name: true,
-            email: true
-          }
-        }
-      }
+            email: true,
+          },
+        },
+      },
     });
 
-    const result = entries.map(entry => {
+    const result = entries.map((entry) => {
       let duration_minutes = null;
 
       if (entry.clock_out) {
@@ -104,7 +106,7 @@ async function getHoursToday(req, res) {
         user: entry.users,
         clock_in: entry.clock_in,
         clock_out: entry.clock_out,
-        duration_minutes
+        duration_minutes,
       };
     });
 
@@ -132,8 +134,8 @@ async function getHoursWeek(req, res) {
       where: {
         clock_in: {
           gte: startOfWeek,
-          lte: endOfWeek
-        }
+          lte: endOfWeek,
+        },
       },
       include: {
         users: {
@@ -141,13 +143,13 @@ async function getHoursWeek(req, res) {
             id: true,
             full_name: true,
             email: true,
-            role: true
-          }
-        }
+            role: true,
+          },
+        },
       },
       orderBy: {
-        clock_in: "desc"
-      }
+        clock_in: "desc",
+      },
     });
 
     const result = entries.map((e) => {
@@ -166,7 +168,7 @@ async function getHoursWeek(req, res) {
         clock_in: e.clock_in,
         clock_out: e.clock_out,
         duration_minutes,
-        note: e.note
+        note: e.note,
       };
     });
 
@@ -174,7 +176,7 @@ async function getHoursWeek(req, res) {
       week_start: startOfWeek,
       week_end: endOfWeek,
       total_entries: result.length,
-      entries: result
+      entries: result,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -187,7 +189,7 @@ async function getHoursRange(req, res) {
 
     if (!start || !end) {
       return res.status(400).json({
-        error: "Parâmetros obrigatórios: start e end (formato YYYY-MM-DD)"
+        error: "Parâmetros obrigatórios: start e end (formato YYYY-MM-DD)",
       });
     }
 
@@ -197,7 +199,7 @@ async function getHoursRange(req, res) {
     const where = {
       clock_in: { gte: startDate, lte: endDate },
       clock_out: { not: null },
-      ...(user_id ? { user_id: String(user_id) } : {})
+      ...(user_id ? { user_id: String(user_id) } : {}),
     };
 
     const entries = await prisma.work_entries.findMany({
@@ -208,18 +210,19 @@ async function getHoursRange(req, res) {
             id: true,
             full_name: true,
             email: true,
-            role: true
-          }
-        }
+            role: true,
+          },
+        },
       },
-      orderBy: { clock_in: "desc" }
+      orderBy: { clock_in: "desc" },
     });
 
     const result = entries.map((e) => {
       const durationMinutes = Math.max(
         0,
         Math.round(
-          (new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()) / 60000
+          (new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()) /
+            60000
         )
       );
 
@@ -230,210 +233,26 @@ async function getHoursRange(req, res) {
         clock_out: e.clock_out,
         duration_minutes: durationMinutes,
         duration_hours: Number((durationMinutes / 60).toFixed(2)),
-        note: e.note
+        note: e.note,
       };
     });
+
+    const totalMinutes = result.reduce((acc, r) => acc + r.duration_minutes, 0);
 
     return res.json({
       start,
       end,
       filter_user_id: user_id ?? null,
       total_entries: result.length,
-      total_minutes: result.reduce((acc, r) => acc + r.duration_minutes, 0),
-      total_hours: Number(
-        (result.reduce((acc, r) => acc + r.duration_minutes, 0) / 60).toFixed(2)
-      ),
-      entries: result
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-}
-async function getHoursToday(req, res) {
-  try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const entries = await prisma.work_entries.findMany({
-      where: {
-        clock_in: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    const result = entries.map(entry => {
-      let duration_minutes = null;
-
-      if (entry.clock_out) {
-        duration_minutes = Math.floor(
-          (new Date(entry.clock_out) - new Date(entry.clock_in)) / 60000
-        );
-      }
-
-      return {
-        id: entry.id,
-        user: entry.users,
-        clock_in: entry.clock_in,
-        clock_out: entry.clock_out,
-        duration_minutes
-      };
-    });
-
-    return res.json(result);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-}
-
-async function getHoursWeek(req, res) {
-  try {
-    const now = new Date();
-    const day = now.getDay();
-    const diffToMonday = day === 0 ? 6 : day - 1;
-
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - diffToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    const entries = await prisma.work_entries.findMany({
-      where: {
-        clock_in: {
-          gte: startOfWeek,
-          lte: endOfWeek
-        }
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true,
-            role: true
-          }
-        }
-      },
-      orderBy: {
-        clock_in: "desc"
-      }
-    });
-
-    const result = entries.map((e) => {
-      let duration_minutes = null;
-
-      if (e.clock_out) {
-        duration_minutes = Math.max(
-          0,
-          Math.round((new Date(e.clock_out) - new Date(e.clock_in)) / 60000)
-        );
-      }
-
-      return {
-        id: e.id,
-        user: e.users,
-        clock_in: e.clock_in,
-        clock_out: e.clock_out,
-        duration_minutes,
-        note: e.note
-      };
-    });
-
-    return res.json({
-      week_start: startOfWeek,
-      week_end: endOfWeek,
-      total_entries: result.length,
-      entries: result
+      total_minutes: totalMinutes,
+      total_hours: Number((totalMinutes / 60).toFixed(2)),
+      entries: result,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
 
-async function getHoursRange(req, res) {
-  try {
-    const { start, end, user_id } = req.query;
-
-    if (!start || !end) {
-      return res.status(400).json({
-        error: "Parâmetros obrigatórios: start e end (formato YYYY-MM-DD)"
-      });
-    }
-
-    const startDate = new Date(`${start}T00:00:00.000Z`);
-    const endDate = new Date(`${end}T23:59:59.999Z`);
-
-    const where = {
-      clock_in: { gte: startDate, lte: endDate },
-      clock_out: { not: null },
-      ...(user_id ? { user_id: String(user_id) } : {})
-    };
-
-    const entries = await prisma.work_entries.findMany({
-      where,
-      include: {
-        users: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true,
-            role: true
-          }
-        }
-      },
-      orderBy: { clock_in: "desc" }
-    });
-
-    const result = entries.map((e) => {
-      const durationMinutes = Math.max(
-        0,
-        Math.round(
-          (new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()) / 60000
-        )
-      );
-
-      return {
-        entry_id: e.id,
-        user: e.users,
-        clock_in: e.clock_in,
-        clock_out: e.clock_out,
-        duration_minutes: durationMinutes,
-        duration_hours: Number((durationMinutes / 60).toFixed(2)),
-        note: e.note
-      };
-    });
-
-    return res.json({
-      start,
-      end,
-      filter_user_id: user_id ?? null,
-      total_entries: result.length,
-      total_minutes: result.reduce((acc, r) => acc + r.duration_minutes, 0),
-      total_hours: Number(
-        (result.reduce((acc, r) => acc + r.duration_minutes, 0) / 60).toFixed(2)
-      ),
-      entries: result
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-}
 async function getAdminHoursToday(req, res) {
   try {
     const start = new Date();
@@ -449,9 +268,9 @@ async function getAdminHoursToday(req, res) {
         clock_in: true,
         clock_out: true,
         users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
+          select: { id: true, full_name: true, email: true, role: true },
+        },
+      },
     });
 
     const totals = new Map();
@@ -474,14 +293,14 @@ async function getAdminHoursToday(req, res) {
       .map(({ user, totalMinutes }) => ({
         user,
         total_minutes: totalMinutes,
-        total_hours: Number((totalMinutes / 60).toFixed(2))
+        total_hours: Number((totalMinutes / 60).toFixed(2)),
       }))
       .sort((a, b) => b.total_minutes - a.total_minutes);
 
     return res.json({
       date: start.toISOString().slice(0, 10),
       count_users: result.length,
-      data: result
+      data: result,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -507,9 +326,9 @@ async function getAdminHoursWeek(req, res) {
         clock_in: true,
         clock_out: true,
         users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
+          select: { id: true, full_name: true, email: true, role: true },
+        },
+      },
     });
 
     const totals = new Map();
@@ -532,7 +351,7 @@ async function getAdminHoursWeek(req, res) {
       .map(({ user, totalMinutes }) => ({
         user,
         total_minutes: totalMinutes,
-        total_hours: Number((totalMinutes / 60).toFixed(2))
+        total_hours: Number((totalMinutes / 60).toFixed(2)),
       }))
       .sort((a, b) => b.total_minutes - a.total_minutes);
 
@@ -540,12 +359,13 @@ async function getAdminHoursWeek(req, res) {
       week_start: start.toISOString().slice(0, 10),
       week_end: end.toISOString().slice(0, 10),
       count_users: result.length,
-      data: result
+      data: result,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
+
 async function getAdminEntriesToday(req, res) {
   try {
     const start = new Date();
@@ -566,15 +386,15 @@ async function getAdminEntriesToday(req, res) {
         created_at: true,
         updated_at: true,
         users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
+          select: { id: true, full_name: true, email: true, role: true },
+        },
+      },
     });
 
     return res.json({
       date: start.toISOString().slice(0, 10),
       count_entries: entries.length,
-      entries
+      entries,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -587,7 +407,7 @@ async function getAdminEntriesRange(req, res) {
 
     if (!startStr || !endStr) {
       return res.status(400).json({
-        error: "Informe os parâmetros start e end no formato YYYY-MM-DD"
+        error: "Informe os parâmetros start e end no formato YYYY-MM-DD",
       });
     }
 
@@ -611,21 +431,104 @@ async function getAdminEntriesRange(req, res) {
         created_at: true,
         updated_at: true,
         users: {
-          select: { id: true, full_name: true, email: true, role: true }
-        }
-      }
+          select: { id: true, full_name: true, email: true, role: true },
+        },
+      },
     });
 
     return res.json({
       start: startStr,
       end: endStr,
       count_entries: entries.length,
-      entries
+      entries,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
+
+// NOVO: relatório semanal agrupado por funcionário
+async function getWeeklyReport(req, res) {
+  try {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).json({
+        error: "start e end são obrigatórios no formato YYYY-MM-DD",
+      });
+    }
+
+    const startDate = new Date(`${start}T00:00:00.000Z`);
+    const endDate = new Date(`${end}T23:59:59.999Z`);
+
+    const entries = await prisma.work_entries.findMany({
+      where: {
+        clock_in: {
+          gte: startDate,
+          lte: endDate,
+        },
+        clock_out: {
+          not: null,
+        },
+      },
+      select: {
+        user_id: true,
+        clock_in: true,
+        clock_out: true,
+        users: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        clock_in: "asc",
+      },
+    });
+
+    const reportMap = {};
+
+    for (const entry of entries) {
+      if (!entry.clock_in || !entry.clock_out || !entry.users) continue;
+
+      const diffMs = new Date(entry.clock_out) - new Date(entry.clock_in);
+      const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+      const userId = entry.users.id;
+
+      if (!reportMap[userId]) {
+        reportMap[userId] = {
+          user_id: entry.users.id,
+          full_name: entry.users.full_name,
+          email: entry.users.email,
+          role: entry.users.role,
+          total_minutes: 0,
+        };
+      }
+
+      reportMap[userId].total_minutes += diffMinutes;
+    }
+
+    const employees = Object.values(reportMap).map((user) => ({
+      ...user,
+      total_hours: Number((user.total_minutes / 60).toFixed(2)),
+      total_hours_formatted: formatMinutes(user.total_minutes),
+    }));
+
+    return res.json({
+      week_start: start,
+      week_end: end,
+      total_employees: employees.length,
+      employees,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   getUserHoursRange,
   getHoursToday,
@@ -634,5 +537,6 @@ module.exports = {
   getAdminHoursToday,
   getAdminHoursWeek,
   getAdminEntriesToday,
-  getAdminEntriesRange
+  getAdminEntriesRange,
+  getWeeklyReport,
 };

@@ -10,7 +10,8 @@ const {
   getAdminHoursToday,
   getAdminHoursWeek,
   getAdminEntriesToday,
-  getAdminEntriesRange
+  getAdminEntriesRange,
+  getWeeklyReport,
 } = require("../controllers/reportController");
 
 router.get("/user-hours-range", auth, isAdmin, getUserHoursRange);
@@ -21,5 +22,8 @@ router.get("/admin-hours-today", auth, isAdmin, getAdminHoursToday);
 router.get("/admin-hours-week", auth, isAdmin, getAdminHoursWeek);
 router.get("/entries-today", auth, isAdmin, getAdminEntriesToday);
 router.get("/entries", auth, isAdmin, getAdminEntriesRange);
+
+// NOVA ROTA: relatório semanal por funcionário
+router.get("/weekly", auth, isAdmin, getWeeklyReport);
 
 module.exports = router;
