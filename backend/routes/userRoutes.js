@@ -6,7 +6,7 @@ const { auth, isAdmin } = require("../middlewares/auth");
 const {
   clockIn,
   clockOut,
-  getMyEntries
+  getMyEntries,
 } = require("../controllers/timeEntryController");
 
 const { requestAdjustment } = require("../controllers/adjustmentController");
@@ -16,10 +16,10 @@ const {
   getMyHoursWeek,
   getMe,
   getUsers,
-  createUser
+  createUser,
 } = require("../controllers/userController");
 
-// usuário
+// usuário autenticado
 router.get("/me", auth, getMe);
 router.get("/my-hours-today", auth, getMyHoursToday);
 router.get("/my-hours-week", auth, getMyHoursWeek);
