@@ -94,6 +94,7 @@ model users {
   employees     employees[]
   time_entries  time_entries[]
   work_entries  work_entries[]
+  leave_requests leave_requests[]
 }
 
 model work_entries {
@@ -108,6 +109,21 @@ model work_entries {
 
   users       users         @relation(fields: [user_id], references: [id])
   adjustments adjustments[]
+
+  @@index([user_id])
+}
+model leave_requests {
+  id         String   @id @default(uuid())
+  user_id    String   @db.Char(36)
+  leave_type String   @db.VarChar(50)
+  start_date DateTime @db.Date
+  end_date   DateTime @db.Date
+  reason     String?  @db.Text
+  status     String   @default("pending") @db.VarChar(20)
+  created_at DateTime @default(now()) @db.DateTime(6)
+  updated_at DateTime @updatedAt @db.DateTime(6)
+
+  user users @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
 }

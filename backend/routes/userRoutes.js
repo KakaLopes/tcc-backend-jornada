@@ -19,6 +19,13 @@ const {
   createUser,
 } = require("../controllers/userController");
 
+const {
+  requestLeave,
+  getMyLeaves,
+  getAllLeaves,
+  updateLeaveStatus,
+} = require("../controllers/leaveController");
+
 // usuário autenticado
 router.get("/me", auth, getMe);
 router.get("/my-hours-today", auth, getMyHoursToday);
@@ -35,5 +42,13 @@ router.post("/clock-out", auth, clockOut);
 
 // ajustes
 router.post("/adjustments/request", auth, requestAdjustment);
+
+// leave requests
+router.post("/leave", auth, requestLeave);
+router.get("/my-leaves", auth, getMyLeaves);
+
+// admin - leave requests
+router.get("/leaves", auth, isAdmin, getAllLeaves);
+router.put("/leave/:id", auth, isAdmin, updateLeaveStatus);
 
 module.exports = router;
