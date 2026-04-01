@@ -88,8 +88,13 @@ model users {
   role          String         @db.VarChar(20)
   phone         String?        @db.VarChar(50)
   address       String?        @db.Text
+
+  annual_leave_days Int @default(20) // 👈 NOVO
+  leave_balance Int?
+
   created_at    DateTime       @default(now()) @db.DateTime(6)
   updated_at    DateTime       @default(now()) @db.DateTime(6)
+
   adjustments   adjustments[]
   employees     employees[]
   time_entries  time_entries[]

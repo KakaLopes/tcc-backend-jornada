@@ -1,7 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const DEFAULT_ANNUAL_LEAVE_DAYS = 20;
+const user = await prisma.users.findUnique({
+  where: { id: userId },
+  select: { annual_leave_days: true }
+});
+
+const annualLeave = user?.annual_leave_days || 20;
 
 function startOfDay(dateString) {
   const date = new Date(dateString);
@@ -101,7 +106,7 @@ async function requestLeave(req, res) {
     }, 0);
 
     const requestedDays = calculateDaysInclusive(startDate, endDate);
-    const availableDays = DEFAULT_ANNUAL_LEAVE_DAYS - usedDays;
+    const availableDays = annualLeave - usedDays;
 
     if (requestedDays > availableDays) {
       return res.status(400).json({
