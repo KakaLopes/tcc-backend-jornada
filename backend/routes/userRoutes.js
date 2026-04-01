@@ -45,7 +45,7 @@ router.post("/adjustments/request", auth, requestAdjustment);
 
 // leave requests
 router.post("/leave", auth, requestLeave);
-router.get("/my-leaves", auth, getMyLeaves);
+router.get("/leave/my", auth, getMyLeaves);
 
 // admin - leave requests
 router.get("/leaves", auth, isAdmin, getAllLeaves);
