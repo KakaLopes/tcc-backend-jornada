@@ -1,13 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const user = await prisma.users.findUnique({
-  where: { id: userId },
-  select: { annual_leave_days: true }
-});
-
-const annualLeave = user?.annual_leave_days || 20;
-
 function startOfDay(dateString) {
   const date = new Date(dateString);
   date.setHours(0, 0, 0, 0);
@@ -52,6 +45,21 @@ async function requestLeave(req, res) {
       });
     }
 
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        annual_leave_days: true,
+        leave_balance: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    const annualLeave = user.annual_leave_days ?? 20;
+    const currentBalance = user.leave_balance ?? annualLeave;
+
     // 1) BLOQUEAR DATAS SOBREPOSTAS
     const overlappingLeave = await prisma.leave_requests.findFirst({
       where: {
@@ -81,36 +89,11 @@ async function requestLeave(req, res) {
     }
 
     // 2) VALIDAR DIAS DISPONÍVEIS
-    // Conta apenas pedidos aprovados do mesmo ano
-    const requestYear = startDate.getFullYear();
-
-    const approvedLeaves = await prisma.leave_requests.findMany({
-      where: {
-        user_id: userId,
-        status: "approved",
-        start_date: {
-          gte: new Date(`${requestYear}-01-01T00:00:00.000Z`),
-          lte: new Date(`${requestYear}-12-31T23:59:59.999Z`),
-        },
-      },
-      select: {
-        start_date: true,
-        end_date: true,
-      },
-    });
-
-    const usedDays = approvedLeaves.reduce((total, leave) => {
-      const leaveStart = new Date(leave.start_date);
-      const leaveEnd = new Date(leave.end_date);
-      return total + calculateDaysInclusive(leaveStart, leaveEnd);
-    }, 0);
-
     const requestedDays = calculateDaysInclusive(startDate, endDate);
-    const availableDays = annualLeave - usedDays;
 
-    if (requestedDays > availableDays) {
+    if (requestedDays > currentBalance) {
       return res.status(400).json({
-        error: `Dias insuficientes. Disponível: ${availableDays}, solicitado: ${requestedDays}`,
+        error: `Dias insuficientes. Disponível: ${currentBalance}, solicitado: ${requestedDays}`,
       });
     }
 
@@ -128,7 +111,7 @@ async function requestLeave(req, res) {
       message: "Leave request submitted",
       leave,
       requested_days: requestedDays,
-      available_days_before_request: availableDays,
+      available_days_before_request: currentBalance,
     });
   } catch (error) {
     console.log("REQUEST LEAVE ERROR:", error);
@@ -162,6 +145,8 @@ async function getAllLeaves(req, res) {
             id: true,
             full_name: true,
             email: true,
+            annual_leave_days: true,
+            leave_balance: true,
           },
         },
       },
@@ -190,6 +175,48 @@ async function updateLeaveStatus(req, res) {
       });
     }
 
+    const leave = await prisma.leave_requests.findUnique({
+      where: { id },
+    });
+
+    if (!leave) {
+      return res.status(404).json({ error: "Leave não encontrado" });
+    }
+
+    // Evita descontar saldo de novo se já estiver aprovado
+    if (leave.status !== "approved" && status === "approved") {
+      const start = new Date(leave.start_date);
+      const end = new Date(leave.end_date);
+      const days = calculateDaysInclusive(start, end);
+
+      const user = await prisma.users.findUnique({
+        where: { id: leave.user_id },
+        select: {
+          annual_leave_days: true,
+          leave_balance: true,
+        },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+
+      const currentBalance = user.leave_balance ?? user.annual_leave_days ?? 20;
+
+      if (days > currentBalance) {
+        return res.status(400).json({
+          error: "Saldo insuficiente",
+        });
+      }
+
+      await prisma.users.update({
+        where: { id: leave.user_id },
+        data: {
+          leave_balance: currentBalance - days,
+        },
+      });
+    }
+
     const updated = await prisma.leave_requests.update({
       where: { id },
       data: { status },
@@ -197,6 +224,7 @@ async function updateLeaveStatus(req, res) {
 
     return res.json(updated);
   } catch (error) {
+    console.log("UPDATE LEAVE ERROR:", error);
     return res.status(500).json({ error: error.message });
   }
 }
