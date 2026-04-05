@@ -13,13 +13,13 @@ async function login(req, res) {
     });
 
     if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatch) {
-      return res.status(401).json({ error: "Senha inválida" });
+      return res.status(401).json({ error: "Invalid password" });
     }
 
     const token = jwt.sign(
@@ -33,7 +33,7 @@ async function login(req, res) {
     );
 
     return res.json({
-      message: "Login realizado com sucesso",
+      message: "Login successful",
       token,
       user: {
         id: user.id,

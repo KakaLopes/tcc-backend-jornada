@@ -4,13 +4,13 @@ function auth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    return res.status(401).json({ error: "Token não informado" });
+    return res.status(401).json({ error: "Token not specified" });
   }
 
   const [type, token] = authHeader.split(" ");
 
   if (type !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Formato inválido. Use: Bearer TOKEN" });
+    return res.status(401).json({ error: "Invalid format. Use: Bearer TOKEN" });
   }
 
   try {
@@ -18,13 +18,13 @@ function auth(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Token inválido ou expirado" });
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
 
 function isAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
-    return res.status(403).json({ error: "Acesso negado (apenas admin)" });
+    return res.status(403).json({ error: "Access refused (admin only)" });
   }
 
   next();

@@ -3,27 +3,16 @@ const router = express.Router();
 
 const { auth, isAdmin } = require("../middlewares/auth");
 
-const {
-  clockIn,
-  clockOut,
-  getMyEntries,
+const { clockIn, clockOut, getMyEntries,
 } = require("../controllers/timeEntryController");
 
 const { requestAdjustment } = require("../controllers/adjustmentController");
 
-const {
-  getMyHoursToday,
-  getMyHoursWeek,
-  getMe,
-  getUsers,
-  createUser,
+const { getMyHoursToday, getMyHoursWeek, getMe, getUsers, createUser,
+  updateUser,
 } = require("../controllers/userController");
 
-const {
-  requestLeave,
-  getMyLeaves,
-  getAllLeaves,
-  updateLeaveStatus,
+const { requestLeave, getMyLeaves, getAllLeaves, updateLeaveStatus,
 } = require("../controllers/leaveController");
 
 // usuário autenticado
@@ -35,6 +24,7 @@ router.get("/my-entries", auth, getMyEntries);
 // usuários
 router.get("/users", auth, isAdmin, getUsers);
 router.post("/users", createUser);
+router.put("/users/:id", auth, isAdmin, updateUser);
 
 // jornadas
 router.post("/clock-in", auth, clockIn);
