@@ -8,8 +8,8 @@ const { clockIn, clockOut, getMyEntries,
 
 const { requestAdjustment } = require("../controllers/adjustmentController");
 
-const { getMyHoursToday, getMyHoursWeek, getMe, getUsers, createUser,
-  updateUser,
+const {
+  getMyHoursToday, getMyHoursWeek, getMe, getUsers, createUser, updateUser, forgotPassword, resetPassword,
 } = require("../controllers/userController");
 
 const { requestLeave, getMyLeaves, getAllLeaves, updateLeaveStatus,
@@ -25,7 +25,8 @@ router.get("/my-entries", auth, getMyEntries);
 router.get("/users", auth, isAdmin, getUsers);
 router.post("/users", createUser);
 router.put("/users/:id", auth, isAdmin, updateUser);
-
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 // jornadas
 router.post("/clock-in", auth, clockIn);
 router.post("/clock-out", auth, clockOut);

@@ -267,6 +267,65 @@ async function updateUser(req, res) {
   }
 }
 
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Email not found" });
+    }
+
+    return res.json({
+      message: "Password reset request created successfully",
+    });
+  } catch (error) {
+    console.log("FORGOT PASSWORD ERROR:", error);
+    return res.status(500).json({ error: "Unable to process request" });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "Email and new password are required" });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.users.update({
+      where: { email },
+      data: { password_hash },
+    });
+
+    return res.json({
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    console.log("RESET PASSWORD ERROR:", error);
+    return res.status(500).json({ error: "Unable to reset password" });
+  }
+}
+
 module.exports = {
   getMe,
   getMyHoursToday,
@@ -274,4 +333,6 @@ module.exports = {
   getUsers,
   createUser,
   updateUser,
+  forgotPassword,
+  resetPassword,
 };
