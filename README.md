@@ -1,10 +1,8 @@
 # ⏱ Work Time Management System
 
-This project was developed as part of a **Final Year Project (TCC)** for the **Software Engineering** course.
+This backend was developed as part of a Final Year Project for the Software Engineering course.
 
-The system allows users to register and manage their working hours, including clock-in/out, time adjustments, administrative reports, and action auditing.
-
-The backend was built using **Node.js**, **Express**, **Prisma ORM**, and **MySQL**, following a **REST API architecture**.
+It provides the server-side logic for a work time management system designed for cafés and small businesses. The API supports authentication, employee management, clock-in/clock-out registration, leave requests, adjustments, reports, and document upload for sick leave requests.
 
 ---
 
@@ -19,6 +17,9 @@ The backend was built using **Node.js**, **Express**, **Prisma ORM**, and **MySQ
 - Thunder Client  
 - Git & GitHub  
 - React Native (Expo)  
+- Cloudinary  
+- dotenv  
+- CORS  
 
 ---
 
@@ -46,12 +47,14 @@ backend
 │   ├── authController.js
 │   ├── adjustmentController.js
 │   ├── reportController.js
-│   └── timeEntryController.js
+│   ├── timeEntryController.js
+│   └── leaveController.js
 │
 ├── routes
 │   ├── adminRoutes.js
 │   ├── reportRoutes.js
-│   └── userRoutes.js
+│   ├── userRoutes.js
+│   └── uploadRoutes.js
 │
 ├── middlewares
 │   └── auth.js
@@ -145,6 +148,74 @@ POST /adjustments/request
 
 ---
 
+# 🏖 Leave Requests
+
+Create leave request
+
+```
+POST /leave
+```
+
+```json
+{
+  "leave_type": "sick_leave",
+  "start_date": "2026-04-10",
+  "end_date": "2026-04-12",
+  "reason": "Medical appointment",
+  "attachment_name": "medical.pdf",
+  "attachment_url": "https://cloudinary-url",
+  "attachment_type": "application/pdf"
+}
+```
+
+Get my leave requests
+
+```
+GET /leave/my
+```
+
+Admin – get all leave requests
+
+```
+GET /leaves
+```
+
+Update leave status (approve/reject)
+
+```
+PUT /leave/:id
+```
+
+---
+
+# 📎 File Upload (Medical Certificates)
+
+Upload file (Base64)
+
+```
+POST /upload/base64
+```
+
+```json
+{
+  "fileName": "medical.pdf",
+  "mimeType": "application/pdf",
+  "base64": "BASE64_STRING"
+}
+```
+
+Response:
+
+```json
+{
+  "url": "https://cloudinary-url",
+  "original_name": "medical.pdf",
+  "type": "application/pdf"
+}
+```
+
+---
+
 # 👨‍💼 Admin Features
 
 Dashboard
@@ -163,6 +234,12 @@ Reject adjustment
 
 ```
 POST /admin/adjustments/:id/reject
+```
+
+Approve / Reject leave
+
+```
+PUT /leave/:id
 ```
 
 ---
@@ -240,12 +317,17 @@ Configure `.env`
 ```
 DATABASE_URL="mysql://user:password@localhost:3306/tcc_db"
 JWT_SECRET="secret"
+
+CLOUDINARY_CLOUD_NAME="your_cloud_name"
+CLOUDINARY_API_KEY="your_api_key"
+CLOUDINARY_API_SECRET="your_api_secret"
 ```
 
 Run Prisma
 
 ```
-npx prisma migrate dev
+npx prisma db push
+npx prisma generate
 ```
 
 Start server
@@ -278,6 +360,8 @@ This project also includes a mobile application built with **React Native (Expo)
 - Clock-in  
 - Clock-out  
 - Work hours tracking  
+- Leave requests with document upload  
+- Admin approval system  
 
 The app consumes this backend API.
 
@@ -286,7 +370,7 @@ The app consumes this backend API.
 # 👨‍🎓 Author
 
 Catalina Lopes  
-Software Engineering – Final Project (TCC)
+Software Engineering – Final Project 
 
 ---
 
@@ -299,5 +383,12 @@ This project demonstrates knowledge in:
 - Backend architecture  
 - ORM usage (Prisma)  
 - Access control  
+- File upload and cloud storage  
 - Audit logging  
 - Version control with Git & GitHub
+
+--- 
+
+📌 Final Note
+
+This project was built not only as an academic requirement, but also as a practical solution for real-world business needs. It reflects the integration of backend development, authentication, database modeling, reporting logic, and cloud file handling in a complete management system.
