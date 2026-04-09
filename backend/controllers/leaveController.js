@@ -22,11 +22,25 @@ function calculateDaysInclusive(startDate, endDate) {
 async function requestLeave(req, res) {
   try {
     const userId = req.user.id;
-    const { leave_type, start_date, end_date, reason } = req.body;
+    const {
+      leave_type,
+      start_date,
+      end_date,
+      reason,
+      attachment_name,
+      attachment_url,
+      attachment_type,
+    } = req.body;
 
     if (!leave_type || !start_date || !end_date) {
       return res.status(400).json({
-        error: "leave_type, start_date e end_date são obrigatórios",
+        error: "leave_type, start_date e end_date are required",
+      });
+    }
+
+    if (leave_type === "sick_leave" && !attachment_name) {
+      return res.status(400).json({
+        error: "Medical certificate is required for sick leave",
       });
     }
 
@@ -35,13 +49,13 @@ async function requestLeave(req, res) {
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return res.status(400).json({
-        error: "Datas inválidas. Use o formato YYYY-MM-DD",
+        error: "Invalid dates. Please use the YYYY-MM-DD format",
       });
     }
 
     if (startDate > endDate) {
       return res.status(400).json({
-        error: "A data final não pode ser anterior à data inicial",
+        error: "The end date cannot be earlier than the start date",
       });
     }
 
@@ -54,13 +68,12 @@ async function requestLeave(req, res) {
     });
 
     if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const annualLeave = user.annual_leave_days ?? 20;
     const currentBalance = user.leave_balance ?? annualLeave;
 
-    // 1) BLOQUEAR DATAS SOBREPOSTAS
     const overlappingLeave = await prisma.leave_requests.findFirst({
       where: {
         user_id: userId,
@@ -84,16 +97,15 @@ async function requestLeave(req, res) {
 
     if (overlappingLeave) {
       return res.status(400).json({
-        error: "Já existe um pedido de leave que se sobrepõe a essas datas",
+        error: "There is already a leave request that overlaps with those dates",
       });
     }
 
-    // 2) VALIDAR DIAS DISPONÍVEIS
     const requestedDays = calculateDaysInclusive(startDate, endDate);
 
     if (requestedDays > currentBalance) {
       return res.status(400).json({
-        error: `Dias insuficientes. Disponível: ${currentBalance}, solicitado: ${requestedDays}`,
+        error: `Not enough days. Available: ${currentBalance}, solicitado: ${requestedDays}`,
       });
     }
 
@@ -104,6 +116,9 @@ async function requestLeave(req, res) {
         start_date: startDate,
         end_date: endDate,
         reason: reason || null,
+        attachment_name: attachment_name || null,
+        attachment_url: attachment_url || null,
+        attachment_type: attachment_type || null,
       },
     });
 
@@ -183,7 +198,6 @@ async function updateLeaveStatus(req, res) {
       return res.status(404).json({ error: "Leave não encontrado" });
     }
 
-    // Evita descontar saldo de novo se já estiver aprovado
     if (leave.status !== "approved" && status === "approved") {
       const start = new Date(leave.start_date);
       const end = new Date(leave.end_date);

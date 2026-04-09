@@ -329,9 +329,22 @@ async function getAdminHoursWeek(req, res) {
           select: { id: true, full_name: true, email: true, role: true },
         },
       },
+      orderBy: {
+        clock_in: "asc",
+      },
     });
 
     const totals = new Map();
+
+    const dailyTotals = {
+      Mon: 0,
+      Tue: 0,
+      Wed: 0,
+      Thu: 0,
+      Fri: 0,
+      Sat: 0,
+      Sun: 0,
+    };
 
     for (const e of entries) {
       const inTime = new Date(e.clock_in);
@@ -345,6 +358,14 @@ async function getAdminHoursWeek(req, res) {
       }
 
       totals.get(key).totalMinutes += minutes;
+
+      const dayIndex = inTime.getDay();
+      const dayMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const dayLabel = dayMap[dayIndex];
+
+      if (dailyTotals[dayLabel] !== undefined) {
+        dailyTotals[dayLabel] += minutes;
+      }
     }
 
     const result = Array.from(totals.values())
@@ -355,13 +376,24 @@ async function getAdminHoursWeek(req, res) {
       }))
       .sort((a, b) => b.total_minutes - a.total_minutes);
 
+    const daily_hours = Object.entries(dailyTotals).map(([day, minutes]) => ({
+      day,
+      total_minutes: minutes,
+      total_hours: Number((minutes / 60).toFixed(2)),
+    }));
+
+    console.log("ENTRIES COUNT:", entries.length);
+    console.log("DAILY HOURS:", daily_hours);
+
     return res.json({
       week_start: start.toISOString().slice(0, 10),
       week_end: end.toISOString().slice(0, 10),
       count_users: result.length,
       data: result,
+      daily_hours,
     });
   } catch (error) {
+    console.log("GET ADMIN HOURS WEEK ERROR:", error);
     return res.status(500).json({ error: error.message });
   }
 }

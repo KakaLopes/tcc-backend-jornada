@@ -10,12 +10,20 @@ const errorHandler = require("./middlewares/errorHandler");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
 const prisma = new PrismaClient();
+
 console.log("🔥 SERVER STARTING...");
+
 app.use(cors());
-app.use(express.json());
+
+// IMPORTANTE PARA BASE64
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ limit: "25mb", extended: true }));
+
+app.use("/upload", uploadRoutes);
 
 // rota teste
 app.get("/", (req, res) => {
@@ -37,7 +45,7 @@ app.delete("/users/:id", auth, isAdmin, async (req, res) => {
     const { id } = req.params;
 
     await prisma.users.delete({
-      where: { id }
+      where: { id },
     });
 
     res.json({ message: "Usuário removido com sucesso" });
@@ -63,8 +71,8 @@ app.get("/my-times", auth, async (req, res) => {
         clock_out: true,
         note: true,
         created_at: true,
-        updated_at: true
-      }
+        updated_at: true,
+      },
     });
 
     res.json(entries);
@@ -90,10 +98,10 @@ app.get("/times", auth, isAdmin, async (req, res) => {
             id: true,
             full_name: true,
             email: true,
-            role: true
-          }
-        }
-      }
+            role: true,
+          },
+        },
+      },
     });
 
     res.json(entries);
@@ -109,8 +117,8 @@ app.get("/debug-users", async (req, res) => {
         id: true,
         full_name: true,
         email: true,
-        role: true
-      }
+        role: true,
+      },
     });
 
     res.json(users);

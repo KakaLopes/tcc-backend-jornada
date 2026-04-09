@@ -8,19 +8,19 @@ datasource db {
 }
 
 model adjustments {
-  id            String    @id @db.Char(36)
-  work_entry_id String?   @db.Char(36)
-  old_value     String?   @db.Text
-  new_value     String?   @db.Text
-  reason        String?   @db.Text
-  approved_by   String?   @db.Char(36)
-  approved_at   DateTime? @db.DateTime(6)
-  created_at    DateTime  @default(now()) @db.DateTime(6)
+  id             String       @id @db.Char(36)
+  work_entry_id  String?      @db.Char(36)
+  old_value      String?      @db.Text
+  new_value      String?      @db.Text
+  reason         String?      @db.Text
+  approved_by    String?      @db.Char(36)
+  approved_at    DateTime?    @db.DateTime(6)
+  created_at     DateTime     @default(now()) @db.DateTime(6)
+  time_entriesId String?      @db.Char(36)
 
-  users          users?        @relation(fields: [approved_by], references: [id], map: "fk_adj_approved_by")
-  work_entries   work_entries? @relation(fields: [work_entry_id], references: [id], onDelete: Cascade, map: "fk_adj_work_entry")
-  timeEntries    time_entries? @relation(fields: [time_entriesId], references: [id])
-  time_entriesId String?       @db.Char(36)
+  users        users?        @relation(fields: [approved_by], references: [id], map: "fk_adj_approved_by")
+  work_entries work_entries? @relation(fields: [work_entry_id], references: [id], onDelete: Cascade, map: "fk_adj_work_entry")
+  timeEntries  time_entries? @relation(fields: [time_entriesId], references: [id])
 
   @@index([approved_by], map: "fk_adj_approved_by")
   @@index([work_entry_id], map: "fk_adj_work_entry")
@@ -41,66 +41,68 @@ model cafes {
   address    String?     @db.Text
   timezone   String?     @default("UTC") @db.VarChar(50)
   created_at DateTime    @default(now()) @db.DateTime(6)
-  employees  employees[]
+
+  employees employees[]
 }
 
 model employees {
-  id            String         @id @db.Char(36)
-  user_id       String?        @db.Char(36)
-  cafe_id       String?        @db.Char(36)
-  employee_code String?        @db.VarChar(50)
-  position      String?        @db.VarChar(100)
-  hire_date     DateTime?      @db.Date
-  active        Boolean?       @default(true)
-  cafes         cafes?         @relation(fields: [cafe_id], references: [id], onUpdate: Restrict, map: "fk_emp_cafe")
-  users         users?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_emp_user")
-  time_entries  time_entries[]
+  id            String      @id @db.Char(36)
+  user_id       String?     @db.Char(36)
+  cafe_id       String?     @db.Char(36)
+  employee_code String?     @db.VarChar(50)
+  position      String?     @db.VarChar(100)
+  hire_date     DateTime?   @db.Date
+  active        Boolean?    @default(true)
+
+  cafes        cafes?        @relation(fields: [cafe_id], references: [id], onUpdate: Restrict, map: "fk_emp_cafe")
+  users        users?        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_emp_user")
+  time_entries time_entries[]
 
   @@index([cafe_id], map: "fk_emp_cafe")
   @@index([user_id], map: "fk_emp_user")
 }
 
 model time_entries {
-  id               String        @id @db.Char(36)
-  employee_id      String?       @db.Char(36)
-  date             DateTime      @db.Date
-  entry_time       DateTime?     @db.DateTime(6)
-  exit_time        DateTime?     @db.DateTime(6)
+  id               String      @id @db.Char(36)
+  employee_id      String?     @db.Char(36)
+  date             DateTime    @db.Date
+  entry_time       DateTime?   @db.DateTime(6)
+  exit_time        DateTime?   @db.DateTime(6)
   duration_minutes Int?
-  entry_type       String?       @db.VarChar(20)
-  note             String?       @db.Text
-  created_by       String?       @db.Char(36)
-  created_at       DateTime      @default(now()) @db.DateTime(6)
-  updated_at       DateTime      @default(now()) @db.DateTime(6)
-  adjustments      adjustments[]
-  users            users?        @relation(fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_te_created_by")
-  employees        employees?    @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_te_employee")
+  entry_type       String?     @db.VarChar(20)
+  note             String?     @db.Text
+  created_by       String?     @db.Char(36)
+  created_at       DateTime    @default(now()) @db.DateTime(6)
+  updated_at       DateTime    @default(now()) @db.DateTime(6)
+
+  adjustments adjustments[]
+  users       users?       @relation(fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_te_created_by")
+  employees   employees?   @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_te_employee")
 
   @@index([created_by], map: "fk_te_created_by")
   @@index([employee_id], map: "fk_te_employee")
 }
 
 model users {
-  id            String         @id @db.Char(36)
-  full_name     String         @db.VarChar(200)
-  email         String         @unique(map: "email") @db.VarChar(200)
-  password_hash String         @db.VarChar(255)
-  role          String         @db.VarChar(20)
-  phone         String?        @db.VarChar(50)
-  address       String?        @db.Text
+  id                String   @id @db.Char(36)
+  full_name         String   @db.VarChar(200)
+  email             String   @unique(map: "email") @db.VarChar(200)
+  password_hash     String   @db.VarChar(255)
+  role              String   @db.VarChar(20)
+  phone             String?  @db.VarChar(50)
+  address           String?  @db.Text
+  annual_leave_days Int      @default(20)
+  leave_balance     Int?
+  created_at        DateTime @default(now()) @db.DateTime(6)
+  updated_at        DateTime @default(now()) @db.DateTime(6)
+  employee_type     String?
+  payment_type      String?
+  active            Boolean  @default(true)
 
-  annual_leave_days Int @default(20) // 👈 NOVO
-  leave_balance Int?
-
-  created_at    DateTime       @default(now()) @db.DateTime(6)
-  updated_at    DateTime       @default(now()) @db.DateTime(6)
-employee_type String?
-payment_type  String?
-active        Boolean @default(true)
-  adjustments   adjustments[]
-  employees     employees[]
-  time_entries  time_entries[]
-  work_entries  work_entries[]
+  adjustments    adjustments[]
+  employees      employees[]
+  time_entries   time_entries[]
+  work_entries   work_entries[]
   leave_requests leave_requests[]
 }
 
@@ -119,16 +121,20 @@ model work_entries {
 
   @@index([user_id])
 }
+
 model leave_requests {
-  id         String   @id @default(uuid())
-  user_id    String   @db.Char(36)
-  leave_type String   @db.VarChar(50)
-  start_date DateTime @db.Date
-  end_date   DateTime @db.Date
-  reason     String?  @db.Text
-  status     String   @default("pending") @db.VarChar(20)
-  created_at DateTime @default(now()) @db.DateTime(6)
-  updated_at DateTime @updatedAt @db.DateTime(6)
+  id              String   @id @default(uuid())
+  user_id         String   @db.Char(36)
+  leave_type      String   @db.VarChar(50)
+  start_date      DateTime @db.Date
+  end_date        DateTime @db.Date
+  reason          String?  @db.Text
+  attachment_name String?  @db.VarChar(255)
+  attachment_url  String?  @db.Text
+  attachment_type String?  @db.VarChar(100)
+  status          String   @default("pending") @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.DateTime(6)
+  updated_at      DateTime @updatedAt @db.DateTime(6)
 
   user users @relation(fields: [user_id], references: [id])
 
