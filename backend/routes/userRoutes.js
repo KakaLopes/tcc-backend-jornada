@@ -23,7 +23,7 @@ router.get("/my-entries", auth, getMyEntries);
 
 // usuários
 router.get("/users", auth, isAdmin, getUsers);
-router.post("/users", createUser);
+router.post("/users", auth, isAdmin, createUser);
 router.put("/users/:id", auth, isAdmin, updateUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

@@ -180,12 +180,23 @@ async function createUser(req, res) {
       });
     }
 
+    const allowedRoles = ["user", "admin"];
+    const finalRole = allowedRoles.includes(role) ? role : "user";
+
+    if (finalRole === "admin" && (!req.user || req.user.role !== "admin")) {
+      return res.status(403).json({
+        error: "Only an admin can create another admin user",
+      });
+    }
+
     const existingUser = await prisma.users.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: "Email address already registered" });
+      return res.status(400).json({
+        error: "Email address already registered",
+      });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -196,7 +207,7 @@ async function createUser(req, res) {
         full_name,
         email,
         password_hash,
-        role: role || "user",
+        role: finalRole,
         phone: phone || null,
         address: address || null,
         employee_type: employee_type || null,
@@ -206,7 +217,10 @@ async function createUser(req, res) {
     });
 
     return res.json({
-      message: "Account created successfully!",
+      message:
+        finalRole === "admin"
+          ? "Admin user created successfully!"
+          : "Employee account created successfully!",
       user: {
         id: user.id,
         full_name: user.full_name,
