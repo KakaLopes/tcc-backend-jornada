@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://tcc-backend-jornada-production.up.railway.app",
+  baseURL: "https://worktime-backend.onrender.com",
   timeout: 15000,
 });
 
