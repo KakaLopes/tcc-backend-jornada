@@ -17,13 +17,26 @@ const prisma = new PrismaClient();
 
 console.log("🔥 SERVER STARTING...");
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+// CORS FIX PARA WEB
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
 
-app.options("*", cors());
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+app.use(cors());
 
 app.use((req, res, next) => {
   console.log("REQUEST:", req.method, req.url);
@@ -64,6 +77,7 @@ app.delete("/users/:id", auth, isAdmin, async (req, res) => {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
+
     res.status(500).json({ error: error.message });
   }
 });
