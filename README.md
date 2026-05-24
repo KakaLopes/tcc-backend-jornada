@@ -1,394 +1,243 @@
 # ⏱ Work Time Management System
 
-This backend was developed as part of a Final Year Project for the Software Engineering course.
+A full-stack work time management system developed as a Final Year Project for the Software Engineering course.
 
-It provides the server-side logic for a work time management system designed for cafés and small businesses. The API supports authentication, employee management, clock-in/clock-out registration, leave requests, adjustments, reports, and document upload for sick leave requests.
+This system was designed for cafés and small businesses to help manage:
+
+- Employee attendance
+- Clock-in / clock-out
+- Leave requests
+- Employee management
+- Reports and analytics
+- Medical certificate uploads
+- Administrative approvals
+
+The project includes:
+
+- 📱 Mobile application (React Native + Expo)
+- 🌐 REST API backend (Node.js + Express)
+- 🗄 MySQL database with Prisma ORM
+- ☁ Cloud deployment and file storage
 
 ---
 
 # 🚀 Technologies Used
 
-- Node.js  
-- Express  
-- Prisma ORM  
-- MySQL  
-- JWT (JSON Web Token)  
-- bcrypt  
-- Thunder Client  
-- Git & GitHub  
-- React Native (Expo)  
-- Cloudinary  
-- dotenv  
-- CORS  
+## Frontend (Mobile)
+
+- React Native
+- Expo
+- Expo Router
+- Axios
+- AsyncStorage
+- JavaScript (ES6+)
+
+## Backend
+
+- Node.js
+- Express
+- Prisma ORM
+- MySQL
+- JWT Authentication
+- bcrypt
+- Cloudinary
+- CORS
+- dotenv
+
+## Dev Tools
+
+- Git & GitHub
+- Thunder Client
+- Render
+- Aiven MySQL
+- VS Code
 
 ---
 
 # 🏗 System Architecture
 
-The backend follows a **REST API architecture**, organized into layers:
+The project follows a client-server architecture.
 
-- Controllers – business logic  
-- Routes – API endpoints  
-- Middlewares – authentication and authorization  
-- Prisma ORM – database access  
-- MySQL – data storage  
+## Mobile Application
 
-Authentication is handled using **JWT (JSON Web Token)**.
+Responsible for:
+
+- User interface
+- Authentication
+- Work hour registration
+- Leave request management
+- API communication
+
+## Backend API
+
+Responsible for:
+
+- Authentication
+- Business rules
+- Database communication
+- Reports
+- Access control
+- File upload handling
+
+## Database
+
+MySQL database managed with Prisma ORM.
 
 ---
 
-# 📂 Project Structure
+# 📱 Main Features
 
-```
-backend
-│
-├── controllers
-│   ├── adminController.js
-│   ├── authController.js
-│   ├── adjustmentController.js
-│   ├── reportController.js
-│   ├── timeEntryController.js
-│   └── leaveController.js
-│
-├── routes
-│   ├── adminRoutes.js
-│   ├── reportRoutes.js
-│   ├── userRoutes.js
-│   └── uploadRoutes.js
-│
-├── middlewares
-│   └── auth.js
-│
-├── prisma
-│   └── schema.prisma
-│
-├── index.js
-└── package.json
-```
+## Employee Features
+
+- Secure login with JWT
+- Clock-in / Clock-out
+- Daily and weekly work tracking
+- Leave requests
+- Upload medical certificates
+- View work history
+
+---
+
+## 👨‍💼 Admin Features
+
+- Manage employees
+- Approve/reject leave requests
+- Approve/reject time adjustments
+- View reports
+- Access dashboard
+- Generate work reports
 
 ---
 
 # 🔐 Authentication
 
-After login, the token must be sent in the request header:
+Authentication is implemented using JWT (JSON Web Token).
 
-```
+Protected routes require:
+
+```http
 Authorization: Bearer TOKEN
 ```
 
 ---
 
-# 👤 Users
-
-## Create User
-
-POST `/users`
-
-```json
-{
-  "full_name": "Maria Silva",
-  "email": "silva@email.com",
-  "password": "123456"
-}
-```
-
----
-
-## Login
-
-POST `/login`
-
-```json
-{
-  "email": "silva@email.com",
-  "password": "123456"
-}
-```
-
----
-
-# ⏱ Work Time Management
-
-Clock-in
-
-```
-POST /clock-in
-```
-
-Clock-out
-
-```
-POST /clock-out
-```
-
-View work history
-
-```
-GET /my-entries
-```
-
----
-
-# 📝 Time Adjustments
-
-Request adjustment
-
-```
-POST /adjustments/request
-```
-
-```json
-{
-  "work_entry_id": "ENTRY_ID",
-  "old_value": "2026-03-10T08:11:00.000Z",
-  "new_value": "2026-03-10T08:10:00.000Z",
-  "reason": "Forgot to clock in"
-}
-```
-
----
-
-# 🏖 Leave Requests
-
-Create leave request
-
-```
-POST /leave
-```
-
-```json
-{
-  "leave_type": "sick_leave",
-  "start_date": "2026-04-10",
-  "end_date": "2026-04-12",
-  "reason": "Medical appointment",
-  "attachment_name": "medical.pdf",
-  "attachment_url": "https://cloudinary-url",
-  "attachment_type": "application/pdf"
-}
-```
-
-Get my leave requests
-
-```
-GET /leave/my
-```
-
-Admin – get all leave requests
-
-```
-GET /leaves
-```
-
-Update leave status (approve/reject)
-
-```
-PUT /leave/:id
-```
-
----
-
-# 📎 File Upload (Medical Certificates)
-
-Upload file (Base64)
-
-```
-POST /upload/base64
-```
-
-```json
-{
-  "fileName": "medical.pdf",
-  "mimeType": "application/pdf",
-  "base64": "BASE64_STRING"
-}
-```
-
-Response:
-
-```json
-{
-  "url": "https://cloudinary-url",
-  "original_name": "medical.pdf",
-  "type": "application/pdf"
-}
-```
-
----
-
-# 👨‍💼 Admin Features
-
-Dashboard
-
-```
-GET /admin/dashboard
-```
-
-Approve adjustment
-
-```
-POST /admin/adjustments/:id/approve
-```
-
-Reject adjustment
-
-```
-POST /admin/adjustments/:id/reject
-```
-
-Approve / Reject leave
-
-```
-PUT /leave/:id
-```
-
----
-
-# 📊 Reports
-
-Hours today
-
-```
-GET /admin/reports/hours-today
-```
-
-Weekly hours
-
-```
-GET /admin/reports/hours-week
-```
-
-Hours by date range
-
-```
-GET /admin/reports/hours-range
-```
-
-Example:
-
-```
-/admin/reports/hours-range?start=2026-03-01&end=2026-03-10
-```
-
----
-
-# 🧾 Audit Logs
-
-```
-GET /admin/audit-logs
-```
-
----
-
-# ❤️ Health Check
-
-```
-GET /admin/health
-```
-
-Response:
-
-```json
-{
-  "status": "ok",
-  "server": "online",
-  "database": "connected"
-}
-```
-
----
-
-# ▶️ How to Run the Project
-
-Clone the repository
-
-```
-git clone https://github.com/KakaLopes/tcc-backend-jornada
-```
-
-Install dependencies
-
-```
-npm install
-```
-
-Configure `.env`
-
-```
-DATABASE_URL="mysql://user:password@localhost:3306/tcc_db"
-JWT_SECRET="secret"
-
-CLOUDINARY_CLOUD_NAME="your_cloud_name"
-CLOUDINARY_API_KEY="your_api_key"
-CLOUDINARY_API_SECRET="your_api_secret"
-```
-
-Run Prisma
-
-```
-npx prisma db push
-npx prisma generate
-```
-
-Start server
-
-```
-node index.js
-```
-
-Server:
-
-```
-http://localhost:3000
+# 📂 Project Structure
+
+```text
+project
+│
+├── mobile-app
+│   ├── app
+│   ├── services
+│   ├── components
+│   └── assets
+│
+├── backend
+│   ├── controllers
+│   ├── routes
+│   ├── middlewares
+│   ├── prisma
+│   └── uploads
+│
+└── README.md
 ```
 
 ---
 
 # 🌐 Live Backend
 
-```
-https://tcc-backend-jornada-production.up.railway.app
+```text
+https://worktime-backend.onrender.com
 ```
 
 ---
 
-# 📱 Mobile Application
+# ▶️ Running the Backend
 
-This project also includes a mobile application built with **React Native (Expo)** featuring:
+Install dependencies
 
-- Login  
-- Clock-in  
-- Clock-out  
-- Work hours tracking  
-- Leave requests with document upload  
-- Admin approval system  
+```bash
+npm install
+```
 
-The app consumes this backend API.
+Run Prisma
+
+```bash
+npx prisma db push
+npx prisma generate
+```
+
+Start server
+
+```bash
+node index.js
+```
+
+---
+
+# ▶️ Running the Mobile App
+
+Install dependencies
+
+```bash
+npm install
+```
+
+Start Expo
+
+```bash
+npx expo start
+```
+
+Run on:
+
+- Expo Go
+- Android Emulator
+- Web Browser
+
+---
+
+# ☁ Deployment
+
+## Backend
+
+Hosted on Render.
+
+## Database
+
+Hosted on Aiven MySQL Cloud.
+
+## File Uploads
+
+Managed with Cloudinary.
+
+---
+
+# 📊 Academic Objectives
+
+This project demonstrates practical knowledge in:
+
+- Full-stack development
+- REST API architecture
+- Authentication and authorization
+- Database modeling
+- Cloud deployment
+- Mobile application development
+- File upload handling
+- Real-world business systems
 
 ---
 
 # 👨‍🎓 Author
 
-Catalina Lopes  
-Software Engineering – Final Project 
+Catalina Lopes
+
+Software Engineering – Final Year Project (TCC)
 
 ---
 
 # 📚 Academic Purpose
 
-This project demonstrates knowledge in:
+This project was developed for academic purposes as part of the Software Engineering degree program.
 
-- REST API development  
-- JWT authentication  
-- Backend architecture  
-- ORM usage (Prisma)  
-- Access control  
-- File upload and cloud storage  
-- Audit logging  
-- Version control with Git & GitHub
-
---- 
-
-📌 Final Note
-
-This project was built not only as an academic requirement, but also as a practical solution for real-world business needs. It reflects the integration of backend development, authentication, database modeling, reporting logic, and cloud file handling in a complete management system.
+It simulates a real-world employee management and work time tracking solution for small businesses.
