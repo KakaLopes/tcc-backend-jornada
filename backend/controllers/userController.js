@@ -242,7 +242,13 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { employee_type, payment_type, active } = req.body;
+
+    const {
+      employee_type,
+      payment_type,
+      active,
+      role,
+    } = req.body;
 
     const existingUser = await prisma.users.findUnique({
       where: { id: String(id) },
@@ -252,14 +258,35 @@ async function updateUser(req, res) {
       return res.status(404).json({ error: "Employee not found" });
     }
 
+    // segurança extra
+    if (
+      role === "admin" &&
+      (!req.user || req.user.role !== "admin")
+    ) {
+      return res.status(403).json({
+        error: "Only an admin can promote another user to admin",
+      });
+    }
+
     const updatedUser = await prisma.users.update({
       where: { id: String(id) },
       data: {
+        role: role !== undefined ? role : existingUser.role,
+
         employee_type:
-          employee_type !== undefined ? employee_type : existingUser.employee_type,
+          employee_type !== undefined
+            ? employee_type
+            : existingUser.employee_type,
+
         payment_type:
-          payment_type !== undefined ? payment_type : existingUser.payment_type,
-        active: active !== undefined ? active : existingUser.active,
+          payment_type !== undefined
+            ? payment_type
+            : existingUser.payment_type,
+
+        active:
+          active !== undefined
+            ? active
+            : existingUser.active,
       },
     });
 
@@ -277,7 +304,9 @@ async function updateUser(req, res) {
     });
   } catch (error) {
     console.log("UPDATE USER ERROR:", error);
-    return res.status(500).json({ error: "Unable to update employee" });
+    return res.status(500).json({
+      error: "Unable to update employee",
+    });
   }
 }
 
