@@ -17,6 +17,14 @@ const prisma = new PrismaClient();
 
 console.log("🔥 SERVER STARTING...");
 
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+app.options("*", cors());
+
 app.use((req, res, next) => {
   console.log("REQUEST:", req.method, req.url);
   next();
